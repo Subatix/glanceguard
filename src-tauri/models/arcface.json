@@ -1,0 +1,11 @@
+{
+  "model_file": "models/arcface_w600k_r50.onnx",
+  "input_name": "input.1",
+  "output_name": "683",
+  "input_width": 112,
+  "input_height": 112,
+  "mean": [127.5, 127.5, 127.5],
+  "std": [128.0, 128.0, 128.0],
+  "channel_order": "rgb",
+  "input_layout": "nchw"
+}
