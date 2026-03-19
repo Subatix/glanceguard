@@ -44,7 +44,7 @@ pub fn get_owner_status(state: State<'_, AppState>) -> Result<bool, String> {
     Ok(owner.is_some())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn enroll_owner_from_image(
     state: State<'_, AppState>,
     app: AppHandle,
@@ -54,7 +54,7 @@ pub fn enroll_owner_from_image(
     enroll_owner_from_frame(state, app, &image)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn enroll_owner_from_live(state: State<'_, AppState>, app: AppHandle) -> Result<OwnerModelInfo, String> {
     let settings = state.settings.lock().map_err(|_| "Settings lock poisoned".to_string())?;
     let selection = settings

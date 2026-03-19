@@ -135,7 +135,16 @@ fn run_loop(
         for (idx, face) in faces.iter().enumerate() {
             let similarity = similarities.get(idx).copied();
 
-            let (label, observer_score) = if Some(idx) == owner_id {
+            let is_owner = Some(idx) == owner_id;
+            // Suppress duplicate detections: if a face overlaps heavily with the
+            // identified owner, treat it as the owner too (don't score as observer).
+            let overlaps_owner = !is_owner
+                && owner_id
+                    .and_then(|oid| faces.get(oid))
+                    .map(|owner_face| bbox_iou(&face.bbox, &owner_face.bbox) > 0.3)
+                    .unwrap_or(false);
+
+            let (label, observer_score) = if is_owner || overlaps_owner {
                 ("owner".to_string(), None)
             } else {
                 let owner_bbox = owner_id.and_then(|oid| faces.get(oid)).map(|f| &f.bbox);
@@ -235,6 +244,16 @@ fn emit_error(app: &AppHandle, message: &str) -> Result<(), String> {
         message: message.to_string(),
     };
     app.emit("cv:error", event).map_err(|e| e.to_string())
+}
+
+fn bbox_iou(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox) -> f32 {
+    let x1 = a.x.max(b.x);
+    let y1 = a.y.max(b.y);
+    let x2 = (a.x + a.width).min(b.x + b.width);
+    let y2 = (a.y + a.height).min(b.y + b.height);
+    let inter = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
+    let union = a.width * a.height + b.width * b.height - inter;
+    if union <= 0.0 { 0.0 } else { inter / union }
 }
 
 fn crop_face(image: &image::RgbImage, bbox: &crate::cv::types::BoundingBox) -> Result<image::RgbImage, String> {

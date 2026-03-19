@@ -8,7 +8,7 @@
   "channel_order": "rgb",
   "input_layout": "nchw",
   "score_threshold": 0.5,
-  "nms_threshold": 0.4,
+  "nms_threshold": 0.3,
   "outputs": [
     { "stride": 8, "score": "448", "bbox": "451", "kps": "454" },
     { "stride": 16, "score": "471", "bbox": "474", "kps": "477" },

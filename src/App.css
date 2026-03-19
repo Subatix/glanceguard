@@ -573,6 +573,24 @@ input[type="file"]::file-selector-button:hover {
 }
 
 
+/* ── Camera preview ── */
+
+.camera-preview {
+  margin-bottom: 14px;
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+}
+
+.camera-preview__video {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform: scaleX(-1);
+}
+
+
 /* ── Status pill ── */
 
 .status-pill {
