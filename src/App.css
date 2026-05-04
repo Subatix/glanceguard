@@ -79,20 +79,16 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--blue) 16%, transparent);
+  color: var(--text);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .brand__icon svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: var(--text-2);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 17px;
+  height: 17px;
 }
 
 .brand__title {

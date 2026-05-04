@@ -30,7 +30,7 @@ export const notifyAlert = async (
     throw new Error("Notifications permission not granted");
   }
   const title =
-    style === "compact" ? "Peek alert" : "Privacy Alert";
+    style === "compact" ? "Glance alert" : "GlanceGuard Alert";
   sendNotification({
     title,
     body,

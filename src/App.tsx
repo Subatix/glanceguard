@@ -18,6 +18,7 @@ import { useOwnerStore } from "./state/ownerStore";
 import { useSettingsStore } from "./state/settingsStore";
 import { syncDomTheme } from "./theme/syncDomTheme";
 import { notifyAlert } from "./ui/notifications";
+import { GlanceGuardLogo } from "./ui/components/GlanceGuardLogo";
 import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
 import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
@@ -132,7 +133,7 @@ const App = () => {
     });
 
     const trayStateListener = listen<{ idle: boolean }>(
-      "screenpeek-monitor-state",
+      "glanceguard-monitor-state",
       (event) => {
         useMonitorStore
           .getState()
@@ -140,11 +141,11 @@ const App = () => {
       },
     );
 
-    const trayErrListener = listen<{ message: string }>("screenpeek-tray-error", (event) => {
+    const trayErrListener = listen<{ message: string }>("glanceguard-tray-error", (event) => {
       setError(event.payload.message);
     });
 
-    const navListener = listen<{ screen: string }>("screenpeek-navigate", (event) => {
+    const navListener = listen<{ screen: string }>("glanceguard-navigate", (event) => {
       const s = event.payload.screen;
       if (s === "settings" || s === "monitoring" || s === "owner") {
         setActiveScreen(s);
@@ -245,12 +246,9 @@ const App = () => {
       <header className="app__header">
         <div className="brand">
           <div className="brand__icon">
-            <svg viewBox="0 0 24 24" aria-hidden>
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <GlanceGuardLogo aria-hidden />
           </div>
-          <div className="brand__title">Screen Peek Alert</div>
+          <div className="brand__title">GlanceGuard</div>
         </div>
         <nav className="nav" role="tablist" aria-label="Primary">
           <button

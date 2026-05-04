@@ -1,7 +1,7 @@
 [package]
-name = "screen-peek-alert"
+name = "glanceguard"
 version = "0.1.0"
-description = "A Tauri App"
+description = "GlanceGuard desktop app"
 authors = ["you"]
 edition = "2021"
 

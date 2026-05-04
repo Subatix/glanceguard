@@ -21,7 +21,7 @@ use crate::storage;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 #[derive(Clone, Serialize)]
-struct ScreenPeekMonitorPayload {
+struct GlanceGuardMonitorPayload {
     idle: bool,
 }
 
@@ -32,9 +32,9 @@ fn tauri_err(e: tauri::Error) -> String {
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn emit_monitor_state(app: &AppHandle, idle: bool) {
-    let payload = ScreenPeekMonitorPayload { idle };
+    let payload = GlanceGuardMonitorPayload { idle };
     if let Some(win) = app.get_webview_window("main") {
-        let _ = win.emit("screenpeek-monitor-state", &payload);
+        let _ = win.emit("glanceguard-monitor-state", &payload);
     }
 }
 
@@ -42,7 +42,7 @@ fn emit_monitor_state(app: &AppHandle, idle: bool) {
 fn emit_tray_error(app: &AppHandle, message: String) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.emit(
-            "screenpeek-tray-error",
+            "glanceguard-tray-error",
             &serde_json::json!({ "message": message }),
         );
     }
@@ -101,7 +101,7 @@ fn navigate_main(app: &AppHandle, screen: &str) {
     show_main_window(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.emit(
-            "screenpeek-navigate",
+            "glanceguard-navigate",
             &serde_json::json!({ "screen": screen }),
         );
     }
@@ -150,7 +150,7 @@ pub(crate) fn create_tray(app: &AppHandle) -> Result<(), String> {
         MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>).map_err(tauri_err)?;
     let sep = PredefinedMenuItem::separator(app).map_err(tauri_err)?;
     let quit =
-        MenuItem::with_id(app, "quit", "Quit Screen Peek Alert", true, None::<&str>).map_err(tauri_err)?;
+        MenuItem::with_id(app, "quit", "Quit GlanceGuard", true, None::<&str>).map_err(tauri_err)?;
 
     let menu = Menu::with_items(app, &[&status, &toggle, &open, &settings_m, &sep, &quit])
         .map_err(tauri_err)?;
@@ -162,7 +162,7 @@ pub(crate) fn create_tray(app: &AppHandle) -> Result<(), String> {
     TrayIconBuilder::new()
         .icon(icon)
         .menu(&menu)
-        .tooltip("Screen Peek Alert")
+        .tooltip("GlanceGuard")
         .show_menu_on_left_click(false)
         .on_tray_icon_event(move |_tray, event| {
             if let TrayIconEvent::Click {

@@ -1,6 +1,8 @@
-# Tauri + React + Typescript
+# GlanceGuard
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+macOS desktop app (Tauri + React). Private workspace — see `.planning/` for milestone docs.
+
+This repo began from the stock Tauri React template; native UI lives under `src/` and `src-tauri/`.
 
 ## Recommended IDE Setup
 

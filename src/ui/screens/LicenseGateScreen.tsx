@@ -42,7 +42,7 @@ export const LicenseGateScreen = () => {
       <div className="screen__header">
         <h2>Enter your license</h2>
         <p>
-          Screen Peek Alert is a one-time purchase. There is no free trial — refunds are handled on the store side
+          GlanceGuard is a one-time purchase. There is no free trial — refunds are handled on the store side
           (see the product page).
         </p>
       </div>

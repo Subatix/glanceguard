@@ -49,7 +49,7 @@ export const emptyStatePresets = {
   noPermission: (cta: EmptyStateCta): EmptyStateProps => ({
     icon: <span aria-hidden>🚫</span>,
     title: "Camera permission needed",
-    body: "Allow Screen Peek Alert in System Settings → Privacy & Security → Camera, then return here.",
+    body: "Allow GlanceGuard in System Settings → Privacy & Security → Camera, then return here.",
     primaryCta: cta,
   }),
   modelFailed: (cta: EmptyStateCta): EmptyStateProps => ({

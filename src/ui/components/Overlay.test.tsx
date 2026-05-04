@@ -10,7 +10,7 @@ describe("Overlay", () => {
 
   it("renders alert copy when visible", () => {
     render(<Overlay visible message="Someone may be observing" />);
-    expect(screen.getByText("Privacy Alert")).toBeInTheDocument();
+    expect(screen.getByText("GlanceGuard Alert")).toBeInTheDocument();
     expect(screen.getByText("Someone may be observing")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-# Screen Peek Alert - Manual Testing Checklist
+# GlanceGuard — Manual Testing Checklist
 
 ## Prerequisites
 - ✅ Models downloaded: `src-tauri/models/scrfd_10g_bnkps.onnx`, `src-tauri/models/arcface_w600k_r50.onnx`

@@ -53,7 +53,7 @@ pub fn ensure_camera_video_permission() -> Result<(), String> {
         let status = unsafe { avfoundation_video_authorization_status() };
         if status == 1 || status == 2 {
             return Err(
-                "Camera access is denied for Screen Peek Alert. Enable the camera in System Settings → Privacy & Security → Camera, then relaunch the app.".into(),
+                "Camera access is denied for GlanceGuard. Enable the camera in System Settings → Privacy & Security → Camera, then relaunch the app.".into(),
             );
         }
     }

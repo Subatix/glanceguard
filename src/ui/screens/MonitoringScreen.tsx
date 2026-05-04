@@ -31,7 +31,7 @@ export const MonitoringScreen = () => {
   const isMonitoring = monitor.status !== "idle";
 
   return (
-    <div className="screen">
+    <div className="screen screen--dashboard">
       <div className="screen__header">
         <h2>Monitoring</h2>
         <p>Detects a second face and alerts when someone looks at your screen.</p>

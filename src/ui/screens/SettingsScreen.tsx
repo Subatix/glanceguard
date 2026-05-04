@@ -49,7 +49,7 @@ const NOTIFY_OPTIONS: { value: NotificationStyle; label: string; description: st
   {
     value: "native",
     label: "Standard",
-    description: 'Uses the full "Privacy Alert" title — easiest to notice.',
+    description: 'Uses the full "GlanceGuard Alert" title — easiest to notice.',
   },
   {
     value: "compact",

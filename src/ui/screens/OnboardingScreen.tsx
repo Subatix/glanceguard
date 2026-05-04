@@ -26,10 +26,10 @@ export const OnboardingScreen = () => {
 
   if (step === "welcome") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>Welcome</h2>
-          <p>Screen Peek Alert watches your webcam to warn when someone else may be looking at your screen.</p>
+          <p>GlanceGuard watches your webcam to warn when someone else may be looking at your screen.</p>
         </div>
         <div className="panel">
           <PermissionExplainer
@@ -50,7 +50,7 @@ export const OnboardingScreen = () => {
 
   if (step === "camera-explainer") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>Camera access</h2>
           <p>macOS will show its own permission dialog after you continue — not before.</p>
@@ -76,7 +76,7 @@ export const OnboardingScreen = () => {
 
   if (step === "camera-grant") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>Allow the camera</h2>
           <p>The next button triggers the real browser / system camera prompt (same path as live preview in Owner setup).</p>
@@ -130,7 +130,7 @@ export const OnboardingScreen = () => {
 
   if (step === "keychain-explainer") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>macOS Keychain</h2>
           <p>When you finish enrollment, the app saves an encrypted owner profile.</p>
@@ -156,7 +156,7 @@ export const OnboardingScreen = () => {
 
   if (step === "enrollment") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="panel panel--wide">
           {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
           <EnrollmentWizard
@@ -178,7 +178,7 @@ export const OnboardingScreen = () => {
 
   if (step === "done") {
     return (
-      <div className="screen onboarding-screen">
+      <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>You are set</h2>
           <p>Monitoring needs an enrolled owner — you are ready to open the Monitoring tab.</p>
