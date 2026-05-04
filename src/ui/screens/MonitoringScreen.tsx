@@ -17,32 +17,12 @@ import {
   startMonitoring,
   stopMonitoring,
 } from "../../cv/ipc";
+import { monitoringChipLabels, monitoringProtectionCopy } from "../../messages/alertExperience";
 
-const protectionCopy: Record<MonitorStatus, { title: string; body: string }> = {
-  idle: {
-    title: "Protection is off",
-    body: "Start monitoring when you want GlanceGuard to watch for nearby observers.",
-  },
-  monitoring: {
-    title: "Protection is on",
-    body: "GlanceGuard is watching locally. Frames and face data stay on this Mac.",
-  },
-  alert: {
-    title: "Possible observer",
-    body: "Someone may be looking at your screen. The alert is based on local camera analysis.",
-  },
-  cooldown: {
-    title: "Cooling down",
-    body: "An alert was just sent. Monitoring continues quietly before repeating another alert.",
-  },
-};
+const protectionCopy: Record<MonitorStatus, { title: string; body: string }> =
+  monitoringProtectionCopy;
 
-const monitorStatusLabels: Record<MonitorStatus, string> = {
-  idle: "Idle",
-  monitoring: "Monitoring",
-  alert: "Alert",
-  cooldown: "Cooling down",
-};
+const monitorStatusLabels: Record<MonitorStatus, string> = monitoringChipLabels;
 
 export const MonitoringScreen = () => {
   const cameras = useSettingsStore((state) => state.cameras);
@@ -198,7 +178,7 @@ export const MonitoringScreen = () => {
         </details>
       </Surface>
 
-      <Overlay visible={monitor.status === "alert"} message="Someone may be looking at your screen." />
+      <Overlay visible={monitor.status === "alert"} />
     </div>
   );
 };

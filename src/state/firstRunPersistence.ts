@@ -43,6 +43,7 @@ export type PersistedOnboardingStep =
   | "camera-grant"
   | "keychain-explainer"
   | "enrollment"
+  | "alerts"
   | "done";
 
 export type FirstRunSnapshot = {
@@ -62,6 +63,7 @@ export async function loadFirstRunSnapshot(): Promise<FirstRunSnapshot> {
     rawStep === "camera-grant" ||
     rawStep === "keychain-explainer" ||
     rawStep === "enrollment" ||
+    rawStep === "alerts" ||
     rawStep === "done"
       ? rawStep
       : null;

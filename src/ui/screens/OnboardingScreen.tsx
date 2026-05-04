@@ -6,6 +6,7 @@ import {
   persistOnboardingStep,
 } from "../../state/firstRunPersistence";
 import { listCameras, setCamera, getOwnerStatus } from "../../cv/ipc";
+import { AlertsPermissionPanel } from "../components/AlertsPermissionPanel";
 import { Button } from "../components/Button";
 import { EnrollmentWizard } from "../components/EnrollmentWizard";
 import { PermissionExplainer } from "../components/PermissionExplainer";
@@ -54,7 +55,7 @@ export const OnboardingScreen = () => {
   if (step === "camera-explainer") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <ScreenHeader eyebrow="Step 1 of 3" title="Camera access">
+        <ScreenHeader eyebrow="Step 1 of 4" title="Camera access">
           <p>macOS will show its own permission dialog after you continue — not before.</p>
         </ScreenHeader>
         <Surface className="panel">
@@ -79,7 +80,7 @@ export const OnboardingScreen = () => {
   if (step === "camera-grant") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <ScreenHeader eyebrow="Step 1 of 3" title="Allow the camera">
+        <ScreenHeader eyebrow="Step 1 of 4" title="Allow the camera">
           <p>The next button opens the camera permission prompt so we can show your preview.</p>
         </ScreenHeader>
         <Surface className="panel">
@@ -132,7 +133,7 @@ export const OnboardingScreen = () => {
   if (step === "keychain-explainer") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <ScreenHeader eyebrow="Step 2 of 3" title="macOS Keychain">
+        <ScreenHeader eyebrow="Step 2 of 4" title="macOS Keychain">
           <p>When you finish enrollment, the app saves an encrypted owner profile.</p>
         </ScreenHeader>
         <Surface className="panel">
@@ -159,7 +160,7 @@ export const OnboardingScreen = () => {
       <div className="screen screen--wide onboarding-screen">
         <Surface className="panel panel--wide">
           <div className="panel__header panel__header--center">
-            <StatusPill tone="info">Step 3 of 3</StatusPill>
+            <StatusPill tone="info">Step 3 of 4</StatusPill>
           </div>
           {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
           <EnrollmentWizard
@@ -167,13 +168,35 @@ export const OnboardingScreen = () => {
               void getOwnerStatus()
                 .then((enrolled) => {
                   setOwnerEnrolled(enrolled);
-                  return advance("done");
+                  return advance("alerts");
                 })
                 .catch((err) => setError(String(err)));
             }}
             onClearError={() => setError(undefined)}
             onError={(msg) => setError(msg)}
           />
+        </Surface>
+      </div>
+    );
+  }
+
+  if (step === "alerts") {
+    return (
+      <div className="screen screen--wide onboarding-screen">
+        <ScreenHeader eyebrow="Step 4 of 4" title="Enable alerts">
+          <p>
+            So GlanceGuard can warn you while this window is in the background, allow macOS notifications for this app.
+            You can change the style anytime in Settings.
+          </p>
+        </ScreenHeader>
+        <Surface className="panel">
+          <AlertsPermissionPanel className="onboarding-screen__alerts" setError={setError} />
+          {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
+          <div className="actions onboarding-screen__alert-actions">
+            <Button variant="primary" type="button" onClick={() => void advance("done")}>
+              Continue
+            </Button>
+          </div>
         </Surface>
       </div>
     );

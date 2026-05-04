@@ -147,6 +147,24 @@
   padding: clamp(22px, 4vw, 32px);
 }
 
+.settings-alerts__why {
+  margin: 0 0 var(--space-md);
+  max-width: 56ch;
+}
+
+.settings-alerts__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.settings-alerts__status {
+  flex: 1 1 220px;
+  line-height: 1.45;
+}
+
 .identity-panel {
   width: min(100%, 560px);
   margin-inline: auto;
@@ -396,6 +414,18 @@
   max-width: 46ch;
   margin: 0 auto var(--space-md);
   color: var(--text-2);
+}
+
+.onboarding-screen .onboarding-screen__alerts {
+  justify-self: stretch;
+  margin-bottom: var(--space-sm);
+  max-width: min(52ch, 100%);
+  margin-inline: auto;
+  text-align: left;
+}
+
+.onboarding-screen__alert-actions {
+  margin-top: var(--space-xs);
 }
 
 .onboarding-privacy-footer {

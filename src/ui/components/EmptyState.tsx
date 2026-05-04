@@ -58,7 +58,7 @@ export const emptyStatePresets = {
   ownerNotEnrolled: (cta: EmptyStateCta): EmptyStateProps => ({
     icon: <span aria-hidden>Owner</span>,
     title: "Owner not enrolled",
-    body: "Enroll your face once so monitoring can tell you apart from observers.",
+    body: "Enroll your face once so we can gently tell you apart from anyone else nearby.",
     primaryCta: cta,
   }),
 };

@@ -10,6 +10,7 @@ export type OnboardingWizardStep =
   | "camera-grant"
   | "keychain-explainer"
   | "enrollment"
+  | "alerts"
   | "done";
 
 type AppUiState = {
@@ -40,6 +41,7 @@ function pickInitialStep(
     snapshotStep === "camera-grant" ||
     snapshotStep === "keychain-explainer" ||
     snapshotStep === "enrollment" ||
+    snapshotStep === "alerts" ||
     snapshotStep === "done"
   ) {
     return snapshotStep;

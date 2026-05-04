@@ -17,6 +17,7 @@ import { useMonitorStore } from "./state/monitorStore";
 import { useOwnerStore } from "./state/ownerStore";
 import { useSettingsStore } from "./state/settingsStore";
 import { syncDomTheme } from "./theme/syncDomTheme";
+import { monitoringChipLabels } from "./messages/alertExperience";
 import { notifyAlert } from "./ui/notifications";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
 import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
@@ -29,12 +30,7 @@ import { StatusPill } from "./ui/components/StatusPill";
 import { Surface } from "./ui/components/Surface";
 import { syncBrowserSentry } from "./telemetry/syncBrowserSentry";
 
-const monitorStatusLabels = {
-  idle: "Idle",
-  monitoring: "Monitoring",
-  alert: "Alert",
-  cooldown: "Cooling down",
-} as const;
+const monitorStatusLabels = monitoringChipLabels;
 
 const screenLabels = {
   monitoring: "Protection",
@@ -137,7 +133,7 @@ const App = () => {
     const alertListener = listen<AlertEvent>("cv:alert", (event) => {
       setLastAlert(event.payload);
       const style = useSettingsStore.getState().settings.notificationStyle ?? "native";
-      notifyAlert("Someone may be looking at your screen.", style).catch((err) =>
+      notifyAlert(style).catch((err) =>
         setError(String(err)),
       );
     });

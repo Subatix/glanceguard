@@ -36,4 +36,13 @@ describe("useAppStore", () => {
     expect(s.onboarding.completed).toBe(false);
     expect(s.onboarding.step).toBe("keychain-explainer");
   });
+
+  it("hydrateFirstRun restores alerts step from snapshot", () => {
+    useAppStore.getState().hydrateFirstRun({
+      licenseGatePassed: true,
+      onboardingCompleted: false,
+      onboardingStep: "alerts",
+    });
+    expect(useAppStore.getState().onboarding.step).toBe("alerts");
+  });
 });

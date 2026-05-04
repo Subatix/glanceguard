@@ -4,6 +4,7 @@ import { cameraSelectionKey } from "../../cv/utils";
 import { useAppStore } from "../../state/appStore";
 import { useSettingsStore } from "../../state/settingsStore";
 import type { AppTheme, NotificationStyle, Sensitivity } from "../../settings/types";
+import { AlertsPermissionPanel } from "../components/AlertsPermissionPanel";
 import { PreferenceGroup, PreferenceRow } from "../components/PreferenceGroup";
 import { ScreenHeader } from "../components/ScreenHeader";
 import { SegmentedControl } from "../components/SegmentedControl";
@@ -52,12 +53,12 @@ const NOTIFY_OPTIONS: { value: NotificationStyle; label: string; description: st
   {
     value: "native",
     label: "Standard",
-    description: 'Uses the full "GlanceGuard Alert" title — easiest to notice.',
+    description: 'Uses the full friendly headline (“Someone else may see your screen”) — easiest to notice.',
   },
   {
     value: "compact",
     label: "Compact",
-    description: "Shorter title — slightly quieter while monitoring.",
+    description: 'Shorter headline (“Heads-up”) — slightly quieter banners.',
   },
 ];
 
@@ -89,6 +90,22 @@ export const SettingsScreen = () => {
       </ScreenHeader>
 
       <Surface className="preferences-panel">
+        <PreferenceGroup
+          title="Alerts"
+          description="How GlanceGuard gets your attention while monitoring."
+        >
+          <AlertsPermissionPanel setError={setError} />
+          <SegmentedControl
+            label="Notification style"
+            name="notification"
+            value={settings.notificationStyle ?? "native"}
+            options={NOTIFY_OPTIONS}
+            onChange={(value) => {
+              persist({ notificationStyle: value }).catch((err) => setError(String(err)));
+            }}
+          />
+        </PreferenceGroup>
+
         <PreferenceGroup title="Detection" description="Tune how quickly GlanceGuard reacts.">
           <SegmentedControl
             label="Sensitivity"
@@ -177,15 +194,6 @@ export const SettingsScreen = () => {
             }}
           />
 
-          <SegmentedControl
-            label="Notification style"
-            name="notification"
-            value={settings.notificationStyle ?? "native"}
-            options={NOTIFY_OPTIONS}
-            onChange={(value) => {
-              persist({ notificationStyle: value }).catch((err) => setError(String(err)));
-            }}
-          />
           <PreferenceRow label="Start at login" hint="Start quietly when you sign in to this Mac.">
             <input
               id="settings-start-login"

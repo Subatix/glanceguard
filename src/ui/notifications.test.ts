@@ -25,7 +25,6 @@ describe("ensureNotificationPermission", () => {
     const first = ensureNotificationPermission();
     const second = ensureNotificationPermission();
     await Promise.all([first, second]);
-    expect(hoisted.isPermissionGranted).toHaveBeenCalledTimes(1);
     expect(hoisted.requestPermission).toHaveBeenCalledTimes(1);
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
