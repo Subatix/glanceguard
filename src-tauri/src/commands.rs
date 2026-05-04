@@ -39,6 +39,21 @@ pub fn set_settings(state: State<'_, AppState>, app: AppHandle, update: Settings
 }
 
 #[tauri::command]
+pub fn models_ready(app: AppHandle) -> Result<bool, String> {
+    Ok(crate::models::ensure_models_verified(&app).is_ok())
+}
+
+#[tauri::command]
+pub fn download_models(app: AppHandle, base_url: String) -> Result<(), String> {
+    let trimmed = base_url.trim();
+    if trimmed.is_empty() {
+        return Err("Pass a non-empty base URL for model downloads (e.g. your updates host `/models` path).".into());
+    }
+    crate::models::download_all_models_background(&app, trimmed.to_string());
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_owner_status(state: State<'_, AppState>) -> Result<bool, String> {
     let owner = state.owner.lock().map_err(|_| "Owner lock poisoned".to_string())?;
     Ok(owner.is_some())
@@ -85,6 +100,7 @@ pub fn clear_owner(state: State<'_, AppState>, app: AppHandle) -> Result<(), Str
 
 #[tauri::command]
 pub fn start_monitoring(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
+    crate::models::ensure_models_verified(&app)?;
     let owner = state.owner.lock().map_err(|_| "Owner lock poisoned".to_string())?;
     if owner.is_none() {
         return Err("Enroll an owner before starting monitoring".to_string());
@@ -121,6 +137,7 @@ fn enroll_owner_from_frame(
     app: AppHandle,
     image: &image::RgbImage,
 ) -> Result<OwnerModelInfo, String> {
+    crate::models::ensure_models_verified(&app)?;
     let detector_config = load_detector_config(&app)?;
     let embedder_config = load_embedder_config(&app)?;
     let mut detector = FaceDetector::new(&app, detector_config)?;

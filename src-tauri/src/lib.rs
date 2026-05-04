@@ -1,5 +1,6 @@
 mod commands;
 mod cv;
+mod models;
 mod settings;
 mod state;
 mod storage;
@@ -43,6 +44,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::models_ready,
+            commands::download_models,
             commands::list_cameras,
             commands::set_camera,
             commands::get_settings,

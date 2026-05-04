@@ -31,6 +31,7 @@ fast_image_resize = { version = "4", features = ["image"] }
 ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic", "download-binaries", "copy-dylibs"] }
 ndarray = "0.16"
 ring = "0.17.14"
+ureq = { version = "2.12", features = ["tls"] }
 
 [dev-dependencies]
 insta = "1"

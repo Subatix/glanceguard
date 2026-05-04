@@ -6,7 +6,7 @@ use ort::session::builder::GraphOptimizationLevel;
 use ort::session::Session;
 use ort::value::Tensor;
 use serde::Deserialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use crate::cv::preprocess::{image_to_tensor_f32, resize_rgb, ChannelOrder, TensorLayout};
 use crate::cv::types::{BoundingBox, FaceDetection, Point};
@@ -166,9 +166,7 @@ impl FaceDetector {
 }
 
 fn resolve_model_path(app: &AppHandle, file: &str) -> Result<PathBuf, String> {
-    app.path()
-        .resolve(file, tauri::path::BaseDirectory::Resource)
-        .map_err(|e| e.to_string())
+    crate::models::resolve_onnx_model_path(app, file)
 }
 
 fn parse_channel_order(value: &str) -> Result<ChannelOrder, String> {
