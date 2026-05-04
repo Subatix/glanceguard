@@ -1,14 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 import {
   getOwnerStatus,
   getSettings,
   listCameras,
+  modelsReady,
 } from "./cv/ipc";
 import type { AlertEvent, FrameEvent, ErrorEvent } from "./cv/types";
 import { useAppStore } from "./state/appStore";
 import { notifyAlert } from "./ui/notifications";
+import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
 import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
 import { SettingsScreen } from "./ui/screens/SettingsScreen";
@@ -24,8 +26,22 @@ const App = () => {
   const setDebugFrame = useAppStore((state) => state.setDebugFrame);
   const setError = useAppStore((state) => state.setError);
   const monitorStatus = useAppStore((state) => state.monitor.status);
+  const [modelsOk, setModelsOk] = useState<boolean | null>(null);
 
   useEffect(() => {
+    modelsReady()
+      .then((ok) => setModelsOk(ok))
+      .catch((err) => {
+        setError(String(err));
+        setModelsOk(false);
+      });
+  }, [setError]);
+
+  useEffect(() => {
+    if (modelsOk !== true) {
+      return;
+    }
+
     getSettings()
       .then((settings) => setSettings(settings))
       .catch((err) => setError(String(err)));
@@ -64,7 +80,38 @@ const App = () => {
       alertListener.then((unlisten) => unlisten()).catch(() => undefined);
       errorListener.then((unlisten) => unlisten()).catch(() => undefined);
     };
-  }, [setCameras, setDebugFrame, setError, setLastAlert, setMonitorStatus, setOwnerEnrolled, setSettings]);
+  }, [
+    modelsOk,
+    setCameras,
+    setDebugFrame,
+    setError,
+    setLastAlert,
+    setMonitorStatus,
+    setOwnerEnrolled,
+    setSettings,
+  ]);
+
+  if (modelsOk === null) {
+    return (
+      <div className="app">
+        <main className="app__main">
+          <div className="screen">
+            <p className="muted">Checking model files…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!modelsOk) {
+    return (
+      <div className="app">
+        <main className="app__main">
+          <ModelDownloadScreen onReady={() => setModelsOk(true)} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
