@@ -17,9 +17,11 @@ const RING_C = 2 * Math.PI * RING_R;
 type Props = {
   onComplete: () => void;
   onError: (message: string) => void;
+  /** Clears inline onboarding error before each capture attempt */
+  onClearError?: () => void;
 };
 
-export const EnrollmentWizard = ({ onComplete, onError }: Props) => {
+export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) => {
   const [poseIndex, setPoseIndex] = useState(0);
   const [captures, setCaptures] = useState<number[][]>([]);
   const [busy, setBusy] = useState(false);
@@ -102,6 +104,7 @@ export const EnrollmentWizard = ({ onComplete, onError }: Props) => {
       return;
     }
 
+    onClearError?.();
     setBusy(true);
     try {
       const canvas = document.createElement("canvas");
@@ -146,11 +149,12 @@ export const EnrollmentWizard = ({ onComplete, onError }: Props) => {
     } finally {
       setBusy(false);
     }
-  }, [captures, onComplete, onError, stopCamera]);
+  }, [captures, onClearError, onComplete, onError, stopCamera]);
 
   const progress = captures.length / TOTAL;
   const dashOffset = RING_C * (1 - progress);
   const pose = POSES[poseIndex];
+  const lastPoseCapture = captures.length === TOTAL - 1;
 
   return (
     <div className="enrollment-wizard">
@@ -208,7 +212,11 @@ export const EnrollmentWizard = ({ onComplete, onError }: Props) => {
           disabled={busy || !cameraReady}
           onClick={() => void captureFrame()}
         >
-          {busy ? "Processing…" : `Capture ${pose.title.toLowerCase()}`}
+          {busy
+            ? lastPoseCapture
+              ? "Enrolling on-device…"
+              : "Saving pose…"
+            : `Capture ${pose.title.toLowerCase()}`}
         </button>
       </div>
 

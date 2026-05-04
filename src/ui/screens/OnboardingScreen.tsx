@@ -158,6 +158,7 @@ export const OnboardingScreen = () => {
     return (
       <div className="screen onboarding-screen">
         <div className="panel panel--wide">
+          {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
           <EnrollmentWizard
             onComplete={() => {
               void getOwnerStatus()
@@ -167,6 +168,7 @@ export const OnboardingScreen = () => {
                 })
                 .catch((err) => setError(String(err)));
             }}
+            onClearError={() => setError(undefined)}
             onError={(msg) => setError(msg)}
           />
         </div>
