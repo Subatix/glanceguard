@@ -6,8 +6,9 @@ import {
   getSettings,
   listCameras,
   modelsReady,
+  stopMonitoring,
 } from "./cv/ipc";
-import type { AlertEvent, FrameEvent, ErrorEvent } from "./cv/types";
+import type { AlertEvent, FrameEvent, ErrorEvent, MonitorStoppedEvent } from "./cv/types";
 import { useAppStore } from "./state/appStore";
 import { notifyAlert } from "./ui/notifications";
 import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
@@ -75,10 +76,17 @@ const App = () => {
       setError(event.payload.message);
     });
 
+    const stopListener = listen<MonitorStoppedEvent>("cv:monitor-stopped", (event) => {
+      setError(event.payload.reason);
+      setMonitorStatus("idle", null);
+      stopMonitoring().catch(() => undefined);
+    });
+
     return () => {
       frameListener.then((unlisten) => unlisten()).catch(() => undefined);
       alertListener.then((unlisten) => unlisten()).catch(() => undefined);
       errorListener.then((unlisten) => unlisten()).catch(() => undefined);
+      stopListener.then((unlisten) => unlisten()).catch(() => undefined);
     };
   }, [
     modelsOk,

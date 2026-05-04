@@ -52,6 +52,19 @@ export const SettingsScreen = () => {
         </div>
 
         <div className="field field--row">
+          <label className="field__label">Low-light face boost (CLAHE)</label>
+          <input
+            type="checkbox"
+            checked={Boolean(settings.claheFacePreproc)}
+            onChange={(event) => {
+              setSettings({ claheFacePreproc: event.currentTarget.checked })
+                .then((updated) => setSettingsState(updated))
+                .catch((err) => setError(String(err)));
+            }}
+          />
+        </div>
+
+        <div className="field field--row">
           <label className="field__label">Debug overlay</label>
           <input
             type="checkbox"

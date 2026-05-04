@@ -41,3 +41,7 @@ export type AlertEvent = {
 export type ErrorEvent = {
   message: string;
 };
+
+export type MonitorStoppedEvent = {
+  reason: string;
+};
