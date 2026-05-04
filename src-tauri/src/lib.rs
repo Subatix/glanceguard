@@ -1,6 +1,8 @@
 mod commands;
 pub mod cv;
+mod desktop;
 mod models;
+mod monitoring_ctl;
 mod settings;
 mod state;
 mod storage;
@@ -38,15 +40,49 @@ pub fn ensure_onnx_runtime_loaded() {
 pub fn run() {
     init_ort();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_keyring::init())
+        .plugin(tauri_plugin_keyring::init());
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        use tauri_plugin_global_shortcut::{
+            Builder as ShortcutBuilder, Code, Modifiers, Shortcut, ShortcutState,
+        };
+
+        builder = builder
+            .plugin(tauri_plugin_autostart::Builder::new().build())
+            .plugin(
+                ShortcutBuilder::new()
+                    .with_shortcut(Shortcut::new(
+                        Some(Modifiers::SUPER | Modifiers::ALT),
+                        Code::KeyP,
+                    ))
+                    .expect("built-in pause shortcut registers")
+                    .with_handler(|app, _, ev| {
+                        if ev.state() == ShortcutState::Pressed {
+                            desktop::toggle_pause_from_shell(app);
+                        }
+                    })
+                    .build(),
+            );
+    }
+
+    builder
         .setup(|app| {
             let state = AppState::initialize(app.handle())?;
             app.manage(state);
+
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                desktop::configure_main_window(app.handle())?;
+                desktop::sync_autostart_with_disk_settings(app.handle())?;
+                desktop::create_tray(app.handle())?;
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -3,6 +3,8 @@ use tauri::{AppHandle, State};
 use crate::cv::camera::{self, CameraInfo, CameraSelection};
 use crate::cv::enroll;
 use crate::cv::types::OwnerModelInfo;
+use crate::desktop;
+use crate::monitoring_ctl;
 use crate::settings::{Settings, SettingsUpdate};
 use crate::state::AppState;
 use crate::storage;
@@ -46,8 +48,12 @@ pub fn set_settings(
         .settings
         .lock()
         .map_err(|_| "Settings lock poisoned".to_string())?;
+    let prev_login = settings.start_at_login;
     update.apply(&mut settings)?;
     storage::save_settings(&app, &settings)?;
+    if settings.start_at_login != prev_login {
+        let _ = desktop::sync_autostart_with_flag(&app, settings.start_at_login);
+    }
     Ok(settings.clone())
 }
 
@@ -171,43 +177,12 @@ pub fn clear_owner(state: State<'_, AppState>, app: AppHandle) -> Result<(), Str
 
 #[tauri::command]
 pub fn start_monitoring(state: State<'_, AppState>, app: AppHandle) -> Result<(), String> {
-    crate::models::ensure_models_verified(&app)?;
-    let owner = state
-        .owner
-        .lock()
-        .map_err(|_| "Owner lock poisoned".to_string())?;
-    let profile = owner
-        .as_ref()
-        .ok_or_else(|| "Enroll an owner before starting monitoring".to_string())?;
-    profile.validate_enrollment_complete()?;
-    drop(owner);
-
-    let mut monitor = state
-        .monitor
-        .lock()
-        .map_err(|_| "Monitor lock poisoned".to_string())?;
-    if monitor.is_some() {
-        return Err("Monitoring is already active".to_string());
-    }
-
-    let handle =
-        crate::state::monitor::start_monitoring(app, state.settings.clone(), state.owner.clone())?;
-    *monitor = Some(handle);
-    Ok(())
+    monitoring_ctl::try_start_monitoring(&app, &state)
 }
 
 #[tauri::command]
 pub fn stop_monitoring(state: State<'_, AppState>) -> Result<(), String> {
-    let mut monitor = state
-        .monitor
-        .lock()
-        .map_err(|_| "Monitor lock poisoned".to_string())?;
-    if let Some(handle) = monitor.as_mut() {
-        handle.stop();
-        *monitor = None;
-        return Ok(());
-    }
-    Err("Monitoring is not active".to_string())
+    monitoring_ctl::try_stop_monitoring(&state)
 }
 
 fn image_from_bytes(bytes: &[u8]) -> Result<image::RgbImage, String> {

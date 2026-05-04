@@ -3,6 +3,35 @@ use serde::{Deserialize, Serialize};
 use crate::cv::camera::CameraSelection;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum AppTheme {
+    System,
+    Light,
+    Dark,
+}
+
+impl Default for AppTheme {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NotificationStyle {
+    /// Native dialog + standard title via Tauri notification plugin.
+    Native,
+    /// Shorter title for less intrusion (same delivery path).
+    Compact,
+}
+
+impl Default for NotificationStyle {
+    fn default() -> Self {
+        Self::Native
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Sensitivity {
     Low,
@@ -19,6 +48,12 @@ pub struct Settings {
     #[serde(default)]
     pub clahe_face_preproc: bool,
     pub camera: Option<CameraSelection>,
+    #[serde(default)]
+    pub theme: AppTheme,
+    #[serde(default)]
+    pub start_at_login: bool,
+    #[serde(default)]
+    pub notification_style: NotificationStyle,
 }
 
 impl Default for Settings {
@@ -29,6 +64,9 @@ impl Default for Settings {
             debug_overlay: false,
             clahe_face_preproc: false,
             camera: None,
+            theme: AppTheme::default(),
+            start_at_login: false,
+            notification_style: NotificationStyle::default(),
         }
     }
 }
@@ -50,6 +88,9 @@ pub struct SettingsUpdate {
     pub debug_overlay: Option<bool>,
     pub clahe_face_preproc: Option<bool>,
     pub camera: Option<CameraSelection>,
+    pub theme: Option<AppTheme>,
+    pub start_at_login: Option<bool>,
+    pub notification_style: Option<NotificationStyle>,
 }
 
 impl SettingsUpdate {
@@ -71,6 +112,15 @@ impl SettingsUpdate {
         }
         if let Some(camera) = self.camera {
             settings.camera = Some(camera);
+        }
+        if let Some(theme) = self.theme {
+            settings.theme = theme;
+        }
+        if let Some(start_at_login) = self.start_at_login {
+            settings.start_at_login = start_at_login;
+        }
+        if let Some(notification_style) = self.notification_style {
+            settings.notification_style = notification_style;
         }
         Ok(())
     }
