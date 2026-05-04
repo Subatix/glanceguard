@@ -122,14 +122,24 @@ export const EnrollmentWizard = ({ onComplete, onError }: Props) => {
       const buffer = await blob.arrayBuffer();
       const bytes = Array.from(new Uint8Array(buffer));
 
-      const next = [...captures, bytes];
-      setCaptures(next);
-      if (next.length >= TOTAL) {
+      // Recover from older bug: fifth frame was committed before RPC; failed submits left len > TOTAL and Rust rejects len !== 5.
+      let base = captures;
+      if (base.length >= TOTAL) {
+        base = base.slice(0, TOTAL - 1);
+        setCaptures(base);
+        setPoseIndex(TOTAL - 1);
+      }
+
+      const next = [...base, bytes];
+
+      if (next.length < TOTAL) {
+        setCaptures(next);
+        setPoseIndex(next.length);
+      } else {
         await enrollOwnerFromImageBatch(next);
+        setCaptures(next);
         stopCamera();
         onComplete();
-      } else {
-        setPoseIndex(next.length);
       }
     } catch (e) {
       onError(String(e));
