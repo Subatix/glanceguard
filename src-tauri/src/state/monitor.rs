@@ -83,6 +83,7 @@ fn monitor_worker(
     owner: Arc<Mutex<Option<OwnerProfile>>>,
     stop: Arc<AtomicBool>,
 ) {
+    eprintln!("[monitor] worker thread starting");
     let session = (|| -> Result<(), String> {
         let selection = {
             let settings_guard = settings
@@ -93,10 +94,12 @@ fn monitor_worker(
                 .clone()
                 .ok_or_else(|| "Select a camera before monitoring".to_string())?
         };
+        eprintln!("[monitor] camera selection = {:?}", selection);
         let detector_config = load_detector_config(&app)?;
         let embedder_config = load_embedder_config(&app)?;
         let mut detector = FaceDetector::new(&app, detector_config)?;
         let mut embedder = FaceEmbedder::new(&app, embedder_config.clone())?;
+        eprintln!("[monitor] detector + embedder loaded");
 
         {
             let owner_guard = owner
@@ -111,6 +114,7 @@ fn monitor_worker(
 
         let mut camera = open_camera(&selection)?;
         camera.open_stream().map_err(|e| e.to_string())?;
+        eprintln!("[monitor] camera stream open, entering loop");
 
         let mut alert_state = AlertState::new();
         let mut tracker = FaceTracker::new();
@@ -118,6 +122,8 @@ fn monitor_worker(
         let h = embedder_config.input_height;
 
         let mut consecutive_failures = 0u32;
+        let mut frame_count: u64 = 0;
+        let mut last_log = Instant::now();
 
         while !stop.load(Ordering::SeqCst) {
             let frame_start = Instant::now();
@@ -330,11 +336,26 @@ fn monitor_worker(
             match step {
                 Ok(()) => {
                     consecutive_failures = 0;
+                    frame_count += 1;
+                    if last_log.elapsed() >= Duration::from_secs(3) {
+                        eprintln!(
+                            "[monitor] processed {} frames in last {:?}",
+                            frame_count,
+                            last_log.elapsed()
+                        );
+                        frame_count = 0;
+                        last_log = Instant::now();
+                    }
                 }
                 Err(message) => {
                     consecutive_failures += 1;
+                    eprintln!(
+                        "[monitor] frame error #{}: {}",
+                        consecutive_failures, message
+                    );
                     let _ = emit_error(&app, &message);
                     if consecutive_failures >= CONSECUTIVE_ERROR_STOP {
+                        eprintln!("[monitor] giving up after {} errors", consecutive_failures);
                         let _ = emit_monitor_stopped(&app, &message);
                         break;
                     }
@@ -352,7 +373,10 @@ fn monitor_worker(
     })();
 
     if let Err(e) = session {
+        eprintln!("[monitor] session ended with error: {}", e);
         let _ = emit_error(&app, &e);
+    } else {
+        eprintln!("[monitor] worker thread exited cleanly");
     }
 }
 
