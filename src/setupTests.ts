@@ -6,6 +6,23 @@ afterEach(() => {
   cleanup();
 });
 
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: vi.fn(async () => null),
+}));
+
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn(async () => undefined),
+}));
+
+vi.mock("@sentry/react", () => ({
+  init: vi.fn(),
+  close: vi.fn(),
+}));
+
+vi.mock("./telemetry/syncBrowserSentry", () => ({
+  syncBrowserSentry: vi.fn(),
+}));
+
 vi.mock("@tauri-apps/plugin-store", () => {
   const buildStore = async () => {
     const data = new Map<string, unknown>();

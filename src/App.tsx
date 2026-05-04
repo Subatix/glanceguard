@@ -25,6 +25,8 @@ import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
 import { SettingsScreen } from "./ui/screens/SettingsScreen";
 import { LicenseGateScreen } from "./ui/screens/LicenseGateScreen";
 import { OnboardingScreen } from "./ui/screens/OnboardingScreen";
+import { UpdateBanner } from "./ui/components/UpdateBanner";
+import { syncBrowserSentry } from "./telemetry/syncBrowserSentry";
 
 const App = () => {
   const activeScreen = useAppStore((state) => state.activeScreen);
@@ -49,6 +51,10 @@ const App = () => {
   useEffect(() => {
     syncDomTheme(settings.theme ?? "system");
   }, [settings.theme]);
+
+  useEffect(() => {
+    syncBrowserSentry(Boolean(settings.telemetryEnabled));
+  }, [settings.telemetryEnabled]);
 
   useEffect(() => {
     modelsReady()
@@ -302,6 +308,8 @@ const App = () => {
           </button>
         </div>
       </header>
+
+      <UpdateBanner autoCheck={Boolean(settings.autoCheckUpdates)} />
 
       <main id="panel-main" role="tabpanel" className="app__main">
         {activeScreen === "monitoring" ? <MonitoringScreen /> : null}

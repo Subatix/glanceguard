@@ -202,6 +202,38 @@ export const SettingsScreen = () => {
           />
         </div>
 
+        <div className="field field--row">
+          <label className="field__label" htmlFor="settings-check-updates">
+            Check for app updates automatically
+          </label>
+          <input
+            id="settings-check-updates"
+            type="checkbox"
+            checked={Boolean(settings.autoCheckUpdates ?? true)}
+            onChange={(event) => {
+              persist({ autoCheckUpdates: event.currentTarget.checked }).catch((err) =>
+                setError(String(err)),
+              );
+            }}
+          />
+        </div>
+
+        <div className="field field--row">
+          <label className="field__label" htmlFor="settings-telemetry">
+            Send crash reports (Sentry)
+          </label>
+          <input
+            id="settings-telemetry"
+            type="checkbox"
+            checked={Boolean(settings.telemetryEnabled)}
+            onChange={(event) => {
+              persist({ telemetryEnabled: event.currentTarget.checked }).catch((err) =>
+                setError(String(err)),
+              );
+            }}
+          />
+        </div>
+
         <section className="privacy-panel" aria-labelledby="privacy-panel-title">
           <h3 id="privacy-panel-title" className="privacy-panel__title">
             Privacy &amp; data
@@ -210,8 +242,8 @@ export const SettingsScreen = () => {
             <li>Face embeddings and enrollment data stay on this Mac inside encrypted storage.</li>
             <li>No frames or thumbnails are uploaded by this app (offline-first).</li>
             <li>
-              Telemetry / crash reporting stays opt-in when shipped (see DECISIONS.md D8); this build does not enable it
-              by default.
+              Crash reporting uses Sentry only if you enable it above (DECISIONS.md D8). No face images or thumbnails are
+              sent.
             </li>
           </ul>
         </section>

@@ -7,4 +7,6 @@ export const defaultSettings: Settings = {
   theme: "system",
   startAtLogin: false,
   notificationStyle: "native",
+  telemetryEnabled: false,
+  autoCheckUpdates: true,
 };

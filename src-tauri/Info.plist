@@ -8,5 +8,9 @@
 	<string>GlanceGuard</string>
 	<key>NSCameraUsageDescription</key>
 	<string>GlanceGuard needs camera access to detect faces and identify observers.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>11.0</string>
 </dict>
 </plist>

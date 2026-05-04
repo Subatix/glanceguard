@@ -8,6 +8,7 @@ use crate::monitoring_ctl;
 use crate::settings::{Settings, SettingsUpdate};
 use crate::state::AppState;
 use crate::storage;
+use crate::telemetry;
 
 #[tauri::command]
 pub fn list_cameras() -> Result<Vec<CameraInfo>, String> {
@@ -54,6 +55,7 @@ pub fn set_settings(
     if settings.start_at_login != prev_login {
         let _ = desktop::sync_autostart_with_flag(&app, settings.start_at_login);
     }
+    telemetry::sync_rust_sentry(settings.telemetry_enabled);
     Ok(settings.clone())
 }
 

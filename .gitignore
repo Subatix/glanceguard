@@ -21,7 +21,11 @@ target/
 src-tauri/target/
 
 # ONNX model weights (downloaded in Phase 2+; never commit large binaries)
+# ONNX model weights (downloaded in Phase 2+; never commit large binaries)
 src-tauri/models/*.onnx
+
+# Updater signing private key (pubkey stays in src-tauri/tauri.conf.json)
+src-tauri/.tauri-glanceguard-updater.key
 
 # Editor directories and files
 .vscode/*

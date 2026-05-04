@@ -54,6 +54,16 @@ pub struct Settings {
     pub start_at_login: bool,
     #[serde(default)]
     pub notification_style: NotificationStyle,
+    /// Crash / error reporting (Sentry). Off by default (D8).
+    #[serde(default)]
+    pub telemetry_enabled: bool,
+    /// Periodically check for app updates from the configured endpoint.
+    #[serde(default = "default_auto_check_updates")]
+    pub auto_check_updates: bool,
+}
+
+fn default_auto_check_updates() -> bool {
+    true
 }
 
 impl Default for Settings {
@@ -67,6 +77,8 @@ impl Default for Settings {
             theme: AppTheme::default(),
             start_at_login: false,
             notification_style: NotificationStyle::default(),
+            telemetry_enabled: false,
+            auto_check_updates: true,
         }
     }
 }
@@ -91,6 +103,8 @@ pub struct SettingsUpdate {
     pub theme: Option<AppTheme>,
     pub start_at_login: Option<bool>,
     pub notification_style: Option<NotificationStyle>,
+    pub telemetry_enabled: Option<bool>,
+    pub auto_check_updates: Option<bool>,
 }
 
 impl SettingsUpdate {
@@ -121,6 +135,12 @@ impl SettingsUpdate {
         }
         if let Some(notification_style) = self.notification_style {
             settings.notification_style = notification_style;
+        }
+        if let Some(telemetry_enabled) = self.telemetry_enabled {
+            settings.telemetry_enabled = telemetry_enabled;
+        }
+        if let Some(auto_check_updates) = self.auto_check_updates {
+            settings.auto_check_updates = auto_check_updates;
         }
         Ok(())
     }

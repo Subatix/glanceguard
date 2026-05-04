@@ -12,23 +12,21 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "GlanceGuard",
         "width": 800,
         "height": 600
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost data:; font-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.glanceguard.app https://updates.glanceguard.app ipc: http://ipc.localhost http://127.0.0.1:* http://localhost:* https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.de.sentry.io"
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
-    "targets": "all",
-    "resources": [
-      "models/scrfd.json",
-      "models/arcface.json",
-      "models/LICENSE.txt"
-    ],
+    "targets": ["dmg", "app"],
+    "resources": ["models/scrfd.json", "models/arcface.json", "models/LICENSE.txt"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,7 +35,29 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "infoPlist": "Info.plist"
+      "minimumSystemVersion": "11.0",
+      "hardenedRuntime": true,
+      "signingIdentity": "Developer ID Application: <redacted>",
+      "providerShortName": "<APPLE_TEAM_ID>",
+      "entitlements": "entitlements.plist",
+      "infoPlist": "Info.plist",
+      "dmg": {
+        "background": "icons/dmg-bg.png",
+        "windowSize": { "width": 660, "height": 400 },
+        "appPosition": { "x": 180, "y": 170 },
+        "applicationFolderPosition": { "x": 480, "y": 170 }
+      },
+      "files": {
+        "Resources/PrivacyInfo.xcprivacy": "./PrivacyInfo.xcprivacy"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhENTNBRDA5M0JGRjA4REYKUldUZkNQODdDYTFUamZDQlp5MXNvdE9NUXRyTTVyRVZUTmpIcXNXODNBQ2ZlYldhb2k3WkRBY04K",
+      "endpoints": [
+        "https://updates.glanceguard.app/{{target}}/{{current_version}}"
+      ]
     }
   }
 }

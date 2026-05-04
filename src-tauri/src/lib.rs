@@ -6,6 +6,7 @@ mod monitoring_ctl;
 mod settings;
 mod state;
 mod storage;
+mod telemetry;
 
 use tauri::Manager;
 use state::AppState;
@@ -40,12 +41,27 @@ pub fn ensure_onnx_runtime_loaded() {
 pub fn run() {
     init_ort();
 
-    let mut builder = tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(all(desktop, any(target_os = "macos", target_os = "windows")))]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            desktop::show_main_window(app);
+        }));
+    }
+
+    builder = builder
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init());
+
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
@@ -74,6 +90,12 @@ pub fn run() {
     builder
         .setup(|app| {
             let state = AppState::initialize(app.handle())?;
+            let telemetry_enabled = state
+                .settings
+                .lock()
+                .map_err(|_| "settings lock poisoned".to_string())?
+                .telemetry_enabled;
+            telemetry::sync_rust_sentry(telemetry_enabled);
             app.manage(state);
 
             #[cfg(not(any(target_os = "android", target_os = "ios")))]

@@ -16,6 +16,8 @@ export type Settings = {
   theme?: AppTheme;
   startAtLogin?: boolean;
   notificationStyle?: NotificationStyle;
+  telemetryEnabled?: boolean;
+  autoCheckUpdates?: boolean;
 };
 
 export type SettingsUpdate = {
@@ -27,4 +29,6 @@ export type SettingsUpdate = {
   theme?: AppTheme;
   startAtLogin?: boolean;
   notificationStyle?: NotificationStyle;
+  telemetryEnabled?: boolean;
+  autoCheckUpdates?: boolean;
 };
