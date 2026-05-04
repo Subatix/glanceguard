@@ -1,0 +1,41 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install UI deps
+        run: npm ci
+
+      - name: Vitest
+        run: npm test
+
+      - name: Typecheck + Vite build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Playwright smoke (Vite shell)
+        run: npm run test:e2e
+
+      - name: Download buffalo_s ONNX weights
+        run: bash scripts/download-buffalo-s-models.sh
+
+      - name: Rust tests (unit + ONNX integration)
+        working-directory: src-tauri
+        run: cargo test --features onnx-integration-tests
