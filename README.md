@@ -2,7 +2,7 @@
 
 macOS desktop app (Tauri + React) for webcam-based shoulder-surfing awareness.
 
-**License:** [Apache License 2.0](LICENSE). You can sell official binaries (for example through Paddle) and keep this repo public—customers pay for convenience, Apple-signed/notarized builds, updates, and support. Apache-2.0 still allows anyone to build from source themselves.
+**License:** [Apache License 2.0](LICENSE). You can sell official binaries through Stripe Checkout and keep this repo public. Customers pay for convenience, Apple-signed/notarized builds, updates, and support; Apache-2.0 still allows anyone to build from source themselves.
 
 Implementation: frontend `src/`, native shell `src-tauri/`. Milestone notes under `.planning/`.
 
