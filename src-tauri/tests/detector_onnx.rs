@@ -5,9 +5,9 @@
 use std::path::PathBuf;
 
 use image::open;
-use screen_peek_alert_lib::cv::config::load_detector_config_from_path;
-use screen_peek_alert_lib::cv::detector::FaceDetector;
-use screen_peek_alert_lib::ensure_onnx_runtime_loaded;
+use glanceguard_lib::cv::config::load_detector_config_from_path;
+use glanceguard_lib::cv::detector::FaceDetector;
+use glanceguard_lib::ensure_onnx_runtime_loaded;
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))

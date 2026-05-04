@@ -14,6 +14,35 @@ use crate::settings::Settings;
 const OWNER_PROFILE_FILE: &str = "owner_profile.enc.json";
 const SETTINGS_FILE: &str = "settings.json";
 
+const LEGACY_KEYRING_SERVICE: &str = "com.screenpeek.alert";
+const KEYRING_OWNER_PROFILE_USER: &str = "owner_profile_key";
+
+fn current_keyring_service(app: &AppHandle) -> String {
+    app.config().identifier.clone()
+}
+
+/// Copies the owner-profile encryption secret from the pre-rebrand bundle ID if present.
+fn migrate_legacy_keyring_secret(app: &AppHandle, service: &str) -> Result<(), String> {
+    let keyring = app.keyring();
+    if keyring
+        .get_secret(service, KEYRING_OWNER_PROFILE_USER)
+        .map_err(|e| e.to_string())?
+        .is_some()
+    {
+        return Ok(());
+    }
+    let Some(secret) = keyring
+        .get_secret(LEGACY_KEYRING_SERVICE, KEYRING_OWNER_PROFILE_USER)
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(());
+    };
+    keyring
+        .set_secret(service, KEYRING_OWNER_PROFILE_USER, &secret)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn load_settings(app: &AppHandle) -> Result<Settings, String> {
     let path = settings_path(app)?;
     if !path.exists() {
@@ -109,11 +138,11 @@ fn owner_profile_path(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 fn get_or_create_encryption_key(app: &AppHandle) -> Result<Vec<u8>, String> {
-    let service = app.config().identifier.clone();
-    let user = "owner_profile_key";
+    let service = current_keyring_service(app);
+    migrate_legacy_keyring_secret(app, &service)?;
     if let Some(secret) = app
         .keyring()
-        .get_secret(&service, user)
+        .get_secret(&service, KEYRING_OWNER_PROFILE_USER)
         .map_err(|e| e.to_string())?
     {
         return Ok(secret);
@@ -125,18 +154,18 @@ fn get_or_create_encryption_key(app: &AppHandle) -> Result<Vec<u8>, String> {
         .map_err(|_| "Failed to generate key".to_string())?;
 
     app.keyring()
-        .set_secret(&service, user, &key_bytes)
+        .set_secret(&service, KEYRING_OWNER_PROFILE_USER, &key_bytes)
         .map_err(|e| e.to_string())?;
 
     Ok(key_bytes)
 }
 
 fn get_encryption_key(app: &AppHandle) -> Result<Vec<u8>, String> {
-    let service = app.config().identifier.clone();
-    let user = "owner_profile_key";
+    let service = current_keyring_service(app);
+    migrate_legacy_keyring_secret(app, &service)?;
     let secret = app
         .keyring()
-        .get_secret(&service, user)
+        .get_secret(&service, KEYRING_OWNER_PROFILE_USER)
         .map_err(|e| e.to_string())?;
     secret.ok_or_else(|| "Encryption key missing".to_string())
 }

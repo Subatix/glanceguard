@@ -19,7 +19,7 @@ export const LicenseGateScreen = () => {
     const trimmed = licenseKey.trim();
     if (!isValidLicenseKeyFormat(trimmed)) {
       setError(
-        "Use the license key from your purchase email (format SP#-XXXX-XXXX-XXXX). Online activation arrives in Phase 11.",
+        "Use the license key from your purchase email (format GG#-XXXX-XXXX-XXXX). Online activation arrives in Phase 11.",
       );
       return;
     }
@@ -55,7 +55,7 @@ export const LicenseGateScreen = () => {
             autoComplete="off"
             spellCheck={false}
             aria-label="License key"
-            placeholder="SP1-XXXX-XXXX-XXXX"
+            placeholder="GG1-XXXX-XXXX-XXXX"
             value={licenseKey}
             onChange={(e) => {
               setLicenseKey(e.target.value);

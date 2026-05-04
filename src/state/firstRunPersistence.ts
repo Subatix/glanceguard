@@ -1,13 +1,14 @@
 import { Store } from "@tauri-apps/plugin-store";
 
-/** Matches the Phase 11 Crockford-style key shape from DECISIONS.md (client-side format check only until server validation lands). */
-export const LICENSE_KEY_PATTERN = /^SP\d-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/i;
+/** Matches the Phase 11 Crockford-style key shape from DECISIONS.md (client-side format check only until server validation lands). Prefix GG = GlanceGuard product keys. */
+export const LICENSE_KEY_PATTERN = /^GG\d-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/i;
 
 export function isValidLicenseKeyFormat(key: string): boolean {
   return LICENSE_KEY_PATTERN.test(key.trim());
 }
 
 const STORE_FILE = "glanceguard_first_run.json";
+/** Filename frozen from older builds; migration reads this once into `STORE_FILE`. */
 const STORE_LEGACY = "screenpeek_first_run.json";
 
 const TRACK_KEYS = ["license_gate_passed", "onboarding_completed", "onboarding_step"] as const;

@@ -22,14 +22,14 @@ describe("LicenseGateScreen", () => {
     render(<LicenseGateScreen />);
     fireEvent.change(screen.getByLabelText(/License key/i), { target: { value: "not-a-key" } });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
-    expect(await screen.findByText(/format SP#/i)).toBeInTheDocument();
+    expect(await screen.findByText(/format GG#/i)).toBeInTheDocument();
     expect(useLicenseStore.getState().licenseGatePassed).toBe(false);
   });
 
   it("passes gate when key matches client-side format", async () => {
     render(<LicenseGateScreen />);
     fireEvent.change(screen.getByLabelText(/License key/i), {
-      target: { value: "SP1-ABCD-EFGH-JKMN" },
+      target: { value: "GG1-ABCD-EFGH-JKMN" },
     });
     fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
     await waitFor(() => {

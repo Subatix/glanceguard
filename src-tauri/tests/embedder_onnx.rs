@@ -4,12 +4,12 @@
 use std::path::PathBuf;
 
 use image::open;
-use screen_peek_alert_lib::cv::config::{load_detector_config_from_path, load_embedder_config_from_path};
-use screen_peek_alert_lib::cv::detector::FaceDetector;
-use screen_peek_alert_lib::cv::embedder::FaceEmbedder;
-use screen_peek_alert_lib::cv::matching::cosine_similarity;
-use screen_peek_alert_lib::cv::preprocess::align_face_5pt;
-use screen_peek_alert_lib::ensure_onnx_runtime_loaded;
+use glanceguard_lib::cv::config::{load_detector_config_from_path, load_embedder_config_from_path};
+use glanceguard_lib::cv::detector::FaceDetector;
+use glanceguard_lib::cv::embedder::FaceEmbedder;
+use glanceguard_lib::cv::matching::cosine_similarity;
+use glanceguard_lib::cv::preprocess::align_face_5pt;
+use glanceguard_lib::ensure_onnx_runtime_loaded;
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -17,7 +17,7 @@ fn manifest_dir() -> PathBuf {
 
 fn aligned912(
     detector: &mut FaceDetector,
-    embedder_cfg: &screen_peek_alert_lib::cv::embedder::EmbedderConfig,
+    embedder_cfg: &glanceguard_lib::cv::embedder::EmbedderConfig,
     rgb: &image::RgbImage,
 ) -> image::RgbImage {
     let faces = detector.detect(rgb).unwrap();
