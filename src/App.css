@@ -803,6 +803,17 @@ input[type="file"]::file-selector-button:hover {
   line-height: 1.35;
 }
 
+.enrollment-wizard__capture-dim {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.enrollment-wizard__capture-dim--warn {
+  color: var(--red);
+}
+
 .enrollment-wizard__ring-wrap {
   position: relative;
   width: 112px;

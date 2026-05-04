@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { enrollOwnerFromImageBatch, validateEnrollmentSnapshot } from "../../cv/ipc";
+import { requestUserFaceStream } from "../media/requestUserFaceStream";
 import { PrivacyOnboardingFooter } from "./PrivacyOnboardingFooter";
 
 const POSES = [
@@ -26,6 +27,7 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
   const [captures, setCaptures] = useState<number[][]>([]);
   const [busy, setBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [captureSize, setCaptureSize] = useState<{ w: number; h: number } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const onErrorRef = useRef(onError);
@@ -40,15 +42,12 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       videoRef.current.srcObject = null;
     }
     setCameraReady(false);
+    setCaptureSize(null);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    navigator.mediaDevices
-      .getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" },
-        audio: false,
-      })
+    requestUserFaceStream()
       .then((stream) => {
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
@@ -82,6 +81,10 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       })
       .then(() => {
         if (!cancelled) {
+          const v = videoRef.current;
+          if (v && v.videoWidth > 0 && v.videoHeight > 0) {
+            setCaptureSize({ w: v.videoWidth, h: v.videoHeight });
+          }
           setCameraReady(true);
         }
       })
@@ -217,6 +220,17 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       </div>
 
       {!cameraReady ? <p className="muted">Starting camera…</p> : null}
+
+      {captureSize ? (
+        <p
+          className={`muted enrollment-wizard__capture-dim${captureSize.w < 640 || captureSize.h < 480 ? " enrollment-wizard__capture-dim--warn" : ""}`}
+        >
+          Camera capture: {captureSize.w}×{captureSize.h} px
+          {captureSize.w < 640 || captureSize.h < 480
+            ? " — resolution is low (preview can look zoomed); close other apps using the camera so macOS can open HD."
+            : null}
+        </p>
+      ) : null}
 
       <div className="enrollment-wizard__pose">
         <div className="enrollment-wizard__pose-title">

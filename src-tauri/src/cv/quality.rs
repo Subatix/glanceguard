@@ -21,8 +21,11 @@ pub fn yaw_ratio(face: &FaceDetection) -> f32 {
 pub fn pass_quality_gate(image: &RgbImage, face: &FaceDetection) -> Result<(), String> {
     if face.bbox.width < MIN_FACE_WIDTH {
         return Err(format!(
-            "face width {:.1} below minimum {:.0} — move closer so your face fills more of the frame (or fix lighting)",
-            face.bbox.width, MIN_FACE_WIDTH
+            "face width {:.1} below minimum {:.0} — move closer so your face fills more of the frame (or fix lighting) [camera frame {}×{} px]",
+            face.bbox.width,
+            MIN_FACE_WIDTH,
+            image.width(),
+            image.height()
         ));
     }
     if face.score < MIN_DETECTION_SCORE {
