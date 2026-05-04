@@ -79,7 +79,7 @@ export const OnboardingScreen = () => {
       <div className="screen screen--wide onboarding-screen">
         <div className="screen__header">
           <h2>Allow the camera</h2>
-          <p>The next button triggers the real browser / system camera prompt (same path as live preview in Owner setup).</p>
+          <p>The next button opens the camera permission prompt so we can show your preview.</p>
         </div>
         <div className="panel">
           <PermissionExplainer

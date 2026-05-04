@@ -55,8 +55,4 @@ export const modelsReady = async (): Promise<boolean> => {
   return invoke<boolean>("models_ready");
 };
 
-export const downloadModels = async (baseUrl: string): Promise<void> => {
-  await invoke("download_models", { baseUrl });
-};
-
 export type { AlertEvent, FrameEvent };

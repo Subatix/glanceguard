@@ -4,10 +4,10 @@ import { test, expect } from "@playwright/test";
  * Smoke: Vite shell renders before or without a working Tauri IPC bridge (invoke fails in plain Chromium).
  * Full first-run (license gate → onboarding wizard → enroll → monitor) needs a packaged app + WebDriver; Phase 7 landed tray/Rust IPC but Playwright against plain Vite still cannot drive invoke — keep deferred until WebDriver harness exists.
  */
-test("startup shell shows model gate or download screen", async ({ page }) => {
+test("startup shell shows model verification or fatal banner", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByText(/Checking model files|Download face models/i),
+    page.getByText(/Checking model files|Face models could not be loaded/i),
   ).toBeVisible({
     timeout: 120_000,
   });

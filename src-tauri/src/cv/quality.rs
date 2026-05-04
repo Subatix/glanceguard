@@ -20,34 +20,24 @@ pub fn yaw_ratio(face: &FaceDetection) -> f32 {
 
 pub fn pass_quality_gate(image: &RgbImage, face: &FaceDetection) -> Result<(), String> {
     if face.bbox.width < MIN_FACE_WIDTH {
-        return Err(format!(
-            "face width {:.1} below minimum {:.0} — move closer so your face fills more of the frame (or fix lighting) [camera frame {}×{} px]",
-            face.bbox.width,
-            MIN_FACE_WIDTH,
-            image.width(),
-            image.height()
-        ));
+        return Err(
+            "Move closer so your face fills more of the preview, then try again.".into(),
+        );
     }
     if face.score < MIN_DETECTION_SCORE {
-        return Err(format!(
-            "detection score {:.2} below minimum {:.2}",
-            face.score, MIN_DETECTION_SCORE
-        ));
+        return Err(
+            "I cannot see your face clearly yet. Face the camera and use brighter, even lighting.".into(),
+        );
     }
     let y = yaw_ratio(face);
     if y.abs() > MAX_YAW_RATIO_ABS {
-        return Err(format!(
-            "|yaw ratio| {:.2} exceeds {:.2}",
-            y.abs(),
-            MAX_YAW_RATIO_ABS
-        ));
+        return Err(
+            "Turn your head a little back toward center. That angle is too far for enrollment.".into(),
+        );
     }
     let lap_var = laplacian_variance_crop(image, &face.bbox)?;
     if lap_var < MIN_LAPLACIAN_VARIANCE {
-        return Err(format!(
-            "Laplacian variance {:.1} below {:.0} (too blurry)",
-            lap_var, MIN_LAPLACIAN_VARIANCE
-        ));
+        return Err("Hold still for a moment. The photo came out too blurry.".into());
     }
     Ok(())
 }
@@ -62,7 +52,7 @@ fn laplacian_variance_crop(image: &RgbImage, bbox: &BoundingBox) -> Result<f32, 
     let x2 = (bbox.x + bbox.width).min(image.width() as f32).ceil() as u32;
     let y2 = (bbox.y + bbox.height).min(image.height() as f32).ceil() as u32;
     if x2 <= x1 + 2 || y2 <= y1 + 2 {
-        return Err("Face crop too small for blur check".into());
+        return Err("Move closer and keep your full face inside the preview.".into());
     }
 
     let w = x2 - x1;
@@ -92,7 +82,7 @@ fn laplacian_variance_crop(image: &RgbImage, bbox: &BoundingBox) -> Result<f32, 
     }
 
     if responses.is_empty() {
-        return Err("Laplacian region empty".into());
+        return Err("Move closer and keep your full face inside the preview.".into());
     }
 
     let mean = responses.iter().copied().sum::<f32>() / responses.len() as f32;

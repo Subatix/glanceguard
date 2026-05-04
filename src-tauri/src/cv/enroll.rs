@@ -45,7 +45,9 @@ fn pick_enrollment_face_index(image: &RgbImage, faces: &[FaceDetection]) -> Resu
         }
     }
 
-    Err(last_err.unwrap_or_else(|| "No suitable face detected for enrollment".into()))
+    Err(last_err.unwrap_or_else(|| {
+        "I cannot find a usable face yet. Move into the preview and face the camera.".into()
+    }))
 }
 
 /// Detector + quality gate only (no embedder). Matches face picking used by [`embedding_from_rgb_image`].
@@ -58,7 +60,7 @@ pub fn validate_enrollment_snapshot_quality(
     let mut detector = FaceDetector::new(app, detector_config)?;
     let faces = detector.detect(image)?;
     if faces.is_empty() {
-        return Err("No face detected for enrollment".into());
+        return Err("I cannot find a face yet. Move into the preview and face the camera.".into());
     }
     pick_enrollment_face_index(image, &faces)?;
     Ok(())
@@ -74,7 +76,7 @@ pub fn embedding_from_rgb_image(
 ) -> Result<Vec<f32>, String> {
     let faces = detector.detect(image)?;
     if faces.is_empty() {
-        return Err("No face detected for enrollment".into());
+        return Err("I cannot find a face yet. Move into the preview and face the camera.".into());
     }
 
     let idx = pick_enrollment_face_index(image, &faces)?;

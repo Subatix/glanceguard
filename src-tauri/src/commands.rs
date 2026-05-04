@@ -65,16 +65,6 @@ pub fn models_ready(app: AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn download_models(app: AppHandle, base_url: String) -> Result<(), String> {
-    let trimmed = base_url.trim();
-    if trimmed.is_empty() {
-        return Err("Pass a non-empty base URL for model downloads (e.g. your updates host `/models` path).".into());
-    }
-    crate::models::download_all_models_background(&app, trimmed.to_string());
-    Ok(())
-}
-
-#[tauri::command]
 pub fn get_owner_status(state: State<'_, AppState>) -> Result<bool, String> {
     let owner = state
         .owner

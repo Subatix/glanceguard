@@ -3,7 +3,7 @@ import { useMonitorStore } from "../../state/monitorStore";
 import { useOwnerStore } from "../../state/ownerStore";
 import { useSettingsStore } from "../../state/settingsStore";
 import { CameraSelect } from "../components/CameraSelect";
-import { DebugOverlayCanvas } from "../components/DebugOverlayCanvas";
+import { DebugOverlayCanvas as LiveDetectionPreview } from "../components/DebugOverlayCanvas";
 import { EmptyState, emptyStatePresets } from "../components/EmptyState";
 import { Overlay } from "../components/Overlay";
 import { StatusCard } from "../components/StatusCard";
@@ -104,8 +104,8 @@ export const MonitoringScreen = () => {
         <div className="callout">
           <div className="callout__title">Monitoring is active</div>
           <div className="callout__body">
-            Debug overlay is off, so you will see a blank panel. Turn it on to view face boxes
-            and scores in real time.
+            Live detection preview is hidden. Turn it on if you want to see the camera view
+            and face boxes while monitoring.
           </div>
           <button
             type="button"
@@ -116,14 +116,14 @@ export const MonitoringScreen = () => {
                 .catch((err) => setError(String(err)));
             }}
           >
-            Enable debug overlay
+            Show live preview
           </button>
         </div>
       ) : null}
 
       <div className="debug-panel">
         <div className="debug-panel__header">
-          <span>Debug overlay</span>
+          <span>Live detection preview</span>
           <span>{settings.debugOverlay ? "On" : "Off"}</span>
         </div>
         <div
@@ -131,9 +131,9 @@ export const MonitoringScreen = () => {
             isMonitoring && settings.debugOverlay && !debugFrame ? "debug-panel__canvas--shimmer" : ""
           }`}
         >
-          {settings.debugOverlay ? <DebugOverlayCanvas frame={debugFrame} /> : null}
+          {settings.debugOverlay ? <LiveDetectionPreview frame={debugFrame} /> : null}
           {!settings.debugOverlay ? (
-            <div className="debug-panel__empty">Enable debug overlay in settings.</div>
+            <div className="debug-panel__empty">Turn on Live detection preview in Settings.</div>
           ) : null}
         </div>
       </div>

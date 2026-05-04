@@ -1,9 +1,7 @@
-//! ONNX face models: disk layout, integrity, and HTTPS download.
+//! ONNX face models: disk layout and integrity verification.
 
-mod downloader;
 mod paths;
 
-pub use downloader::download_all_models_background;
 pub use paths::resolve_onnx_model_path;
 
 use std::path::{Path, PathBuf};
@@ -17,7 +15,7 @@ use tauri::Manager;
 pub struct ModelArtifact {
     /// Path as stored in JSON (`models/det_500m.onnx`).
     pub resource_path: &'static str,
-    /// Lowercase SHA-256 of file bytes (server serves `https://.../<hex>.onnx`).
+    /// Lowercase SHA-256 of file bytes (integrity check).
     pub sha256_hex: &'static str,
 }
 
@@ -40,18 +38,6 @@ pub fn models_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(root.join("models"))
 }
 
-pub fn artifact_paths(app: &AppHandle) -> Result<Vec<(ModelArtifact, PathBuf)>, String> {
-    let dir = models_data_dir(app)?;
-    let mut out = Vec::with_capacity(MODEL_ARTIFACTS.len());
-    for a in MODEL_ARTIFACTS {
-        let name = Path::new(a.resource_path)
-            .file_name()
-            .ok_or_else(|| format!("Bad model path {}", a.resource_path))?;
-        out.push((*a, dir.join(name)));
-    }
-    Ok(out)
-}
-
 pub(crate) fn file_sha256_hex(path: &Path) -> Result<String, String> {
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     let d = digest(&SHA256, &data);
@@ -64,14 +50,14 @@ pub fn ensure_models_verified(app: &AppHandle) -> Result<(), String> {
         let path = resolve_onnx_model_path(app, artifact.resource_path)?;
         if !path.is_file() {
             return Err(format!(
-                "Missing model `{}`. Download models before continuing.",
+                "Missing bundled model `{}`. Reinstall the app or restore `src-tauri/models/` before building.",
                 artifact.resource_path
             ));
         }
         let got = file_sha256_hex(&path)?;
         if got != artifact.sha256_hex {
             return Err(format!(
-                "Model `{}` failed integrity check (expected {}, got {}). Delete and re-download.",
+                "Model `{}` failed integrity check (expected {}, got {}). Reinstall from a trusted build.",
                 artifact.resource_path, artifact.sha256_hex, got
             ));
         }

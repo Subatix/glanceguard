@@ -7,7 +7,7 @@ type SettingsCameraPreviewProps = {
   selected?: CameraSelection;
 };
 
-/** Browser preview aligned with Rust camera choice via label matching when deviceId is unknown. */
+/** Settings-only framing preview; monitoring still uses the selected native camera. */
 export const SettingsCameraPreview = ({ cameras, selected }: SettingsCameraPreviewProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -91,7 +91,7 @@ export const SettingsCameraPreview = ({ cameras, selected }: SettingsCameraPrevi
       </div>
       {!active ? (
         <p className="muted">
-          Preview uses the browser camera stack (may differ from the Rust capture device until device IDs match).
+          Choose a camera above to check framing before you start monitoring.
         </p>
       ) : null}
     </div>

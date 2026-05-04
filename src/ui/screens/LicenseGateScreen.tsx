@@ -7,8 +7,8 @@ import { useLicenseStore } from "../../state/licenseStore";
 import { PrivacyOnboardingFooter } from "../components/PrivacyOnboardingFooter";
 
 /**
- * Phase 6: collects and persists gate passage; cryptographic license verification / JWT (Phase 11) is not wired yet.
- * Production builds still require a well-formed key — there is no silent bypass. Development builds may use the explicit skip control (import.meta.env.DEV only).
+ * Temporary license placeholder: only validates the local key format until real
+ * cryptographic activation / JWT verification is wired.
  */
 export const LicenseGateScreen = () => {
   const setLicenseGatePassed = useLicenseStore((s) => s.setLicenseGatePassed);
@@ -19,7 +19,7 @@ export const LicenseGateScreen = () => {
     const trimmed = licenseKey.trim();
     if (!isValidLicenseKeyFormat(trimmed)) {
       setError(
-        "Use the license key from your purchase email (format GG#-XXXX-XXXX-XXXX). Online activation arrives in Phase 11.",
+        "This placeholder only accepts the test format GG#-XXXX-XXXX-XXXX. Real online activation is not wired yet.",
       );
       return;
     }
@@ -40,21 +40,30 @@ export const LicenseGateScreen = () => {
   return (
     <div className="screen license-gate">
       <div className="screen__header">
-        <h2>Enter your license</h2>
+        <h2>License activation placeholder</h2>
         <p>
-          GlanceGuard is a one-time purchase. There is no free trial — refunds are handled on the store side
-          (see the product page).
+          Real license validation is not connected in this build yet. This screen only keeps
+          the onboarding shape ready while activation is wired.
         </p>
       </div>
 
       <div className="panel">
+        <div className="license-gate__notice" role="status">
+          <strong>Not production licensing.</strong>
+          <span>
+            For now, this checks only the key format and stores a local “passed” flag. The
+            next licensing pass must replace this with server-backed activation and signed
+            offline state.
+          </span>
+        </div>
+
         <label className="field">
-          <span className="field__label">License key</span>
+          <span className="field__label">Temporary test license key</span>
           <input
             className="field__input"
             autoComplete="off"
             spellCheck={false}
-            aria-label="License key"
+            aria-label="Temporary test license key"
             placeholder="GG1-XXXX-XXXX-XXXX"
             value={licenseKey}
             onChange={(e) => {
@@ -73,11 +82,11 @@ export const LicenseGateScreen = () => {
 
         <div className="actions">
           <button type="button" className="button button--primary" onClick={() => void submit()}>
-            Continue
+            Continue with placeholder key
           </button>
           {import.meta.env.DEV ? (
             <button type="button" className="button button--ghost" onClick={() => void skipDevOnly()}>
-              Skip for local dev (not in production)
+              Skip placeholder for testing
             </button>
           ) : null}
         </div>

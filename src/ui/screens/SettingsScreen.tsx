@@ -172,7 +172,7 @@ export const SettingsScreen = () => {
 
         <div className="field field--row">
           <label className="field__label" htmlFor="settings-clahe">
-            Low-light face boost (CLAHE)
+            Low-light face boost
           </label>
           <input
             id="settings-clahe"
@@ -188,7 +188,7 @@ export const SettingsScreen = () => {
 
         <div className="field field--row">
           <label className="field__label" htmlFor="settings-debug">
-            Debug overlay
+            Live detection preview
           </label>
           <input
             id="settings-debug"
@@ -220,7 +220,7 @@ export const SettingsScreen = () => {
 
         <div className="field field--row">
           <label className="field__label" htmlFor="settings-telemetry">
-            Send crash reports (Sentry)
+            Send crash reports
           </label>
           <input
             id="settings-telemetry"
@@ -240,10 +240,9 @@ export const SettingsScreen = () => {
           </h3>
           <ul className="privacy-panel__list">
             <li>Face embeddings and enrollment data stay on this Mac inside encrypted storage.</li>
-            <li>No frames or thumbnails are uploaded by this app (offline-first).</li>
+            <li>No frames or thumbnails are uploaded by this app.</li>
             <li>
-              Crash reporting uses Sentry only if you enable it above (DECISIONS.md D8). No face images or thumbnails are
-              sent.
+              Crash reports are sent only if you enable them above. They do not include face images or thumbnails.
             </li>
           </ul>
         </section>

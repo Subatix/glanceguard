@@ -20,18 +20,18 @@ describe("LicenseGateScreen", () => {
 
   it("shows validation error for malformed license key", async () => {
     render(<LicenseGateScreen />);
-    fireEvent.change(screen.getByLabelText(/License key/i), { target: { value: "not-a-key" } });
-    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    fireEvent.change(screen.getByLabelText(/Temporary test license key/i), { target: { value: "not-a-key" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Continue with placeholder key$/i }));
     expect(await screen.findByText(/format GG#/i)).toBeInTheDocument();
     expect(useLicenseStore.getState().licenseGatePassed).toBe(false);
   });
 
   it("passes gate when key matches client-side format", async () => {
     render(<LicenseGateScreen />);
-    fireEvent.change(screen.getByLabelText(/License key/i), {
+    fireEvent.change(screen.getByLabelText(/Temporary test license key/i), {
       target: { value: "GG1-ABCD-EFGH-JKMN" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Continue with placeholder key$/i }));
     await waitFor(() => {
       expect(persistence.persistLicenseGatePassed).toHaveBeenCalledWith(true);
       expect(useLicenseStore.getState().licenseGatePassed).toBe(true);

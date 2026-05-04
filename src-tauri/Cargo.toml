@@ -40,7 +40,6 @@ ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic", "downlo
 ndarray = "0.16"
 nalgebra = { version = "0.33", default-features = false, features = ["std"] }
 ring = "0.17.14"
-ureq = { version = "2.12", features = ["tls"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"

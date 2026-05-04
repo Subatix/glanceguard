@@ -109,7 +109,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::models_ready,
-            commands::download_models,
             commands::list_cameras,
             commands::set_camera,
             commands::get_settings,

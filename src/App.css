@@ -76,19 +76,19 @@ body {
 }
 
 .brand__icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--blue) 16%, transparent);
-  color: var(--text);
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
-.brand__icon svg {
-  width: 17px;
-  height: 17px;
+.brand__icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .brand__title {
@@ -173,8 +173,15 @@ body {
 
 /* ── Screen ── */
 
+.screen {
+  width: min(100%, 960px);
+  margin-inline: auto;
+}
+
 .screen__header {
-  margin-bottom: 20px;
+  max-width: 560px;
+  margin: 0 auto 20px;
+  text-align: center;
 }
 
 .screen__header h2 {
@@ -213,6 +220,7 @@ body {
 
 .screen > .panel {
   max-width: 480px;
+  margin-inline: auto;
 }
 
 .card__title {
@@ -394,17 +402,23 @@ input[type="file"]::file-selector-button:hover {
 .actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .button {
   font-family: var(--font);
   font-size: 13px;
   font-weight: 500;
-  padding: 7px 14px;
+  line-height: 1.2;
+  min-height: 34px;
+  padding: 8px 16px;
   border: none;
   border-radius: var(--radius-s);
   cursor: pointer;
   transition: background 100ms, color 100ms;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .button--primary {
@@ -710,10 +724,24 @@ input[type="file"]::file-selector-button:hover {
   }
 }
 
-/* ── Model download gate ── */
+/* ── Fatal model verification (bundled ONNX) ── */
 
-.model-download__panel {
+.model-fatal {
+  padding: clamp(24px, 6vw, 48px);
   max-width: 520px;
+  margin-inline: auto;
+}
+
+.model-fatal__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
+.model-fatal__body {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .inline-code {
@@ -730,13 +758,6 @@ input[type="file"]::file-selector-button:hover {
   color: var(--text-2);
 }
 
-.model-download__progress {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-
 /* ── Phase 6: onboarding, empty states, loading ── */
 
 .onboarding-privacy-footer {
@@ -746,6 +767,49 @@ input[type="file"]::file-selector-button:hover {
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-3);
+  text-align: center;
+}
+
+.license-gate,
+.onboarding-screen {
+  min-height: calc(100vh - 96px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.license-gate .panel,
+.onboarding-screen > .panel {
+  text-align: center;
+}
+
+.license-gate .field {
+  text-align: left;
+}
+
+.license-gate__notice {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--amber) 34%, var(--border));
+  border-radius: var(--radius-s);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.license-gate__notice strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.license-gate .actions,
+.onboarding-screen .actions,
+.permission-explainer__actions {
+  justify-content: center;
 }
 
 .permission-explainer__title {
@@ -758,6 +822,8 @@ input[type="file"]::file-selector-button:hover {
   font-size: 13px;
   color: var(--text-2);
   margin-bottom: 16px;
+  max-width: 46ch;
+  margin-inline: auto;
 }
 
 .permission-explainer__body p + p {
@@ -772,6 +838,11 @@ input[type="file"]::file-selector-button:hover {
 
 .onboarding-screen__inline-error {
   margin-top: 12px;
+}
+
+.onboarding-screen__done-body {
+  max-width: 44ch;
+  margin: 0 auto 16px;
 }
 
 .panel--wide {

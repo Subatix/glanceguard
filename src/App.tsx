@@ -18,8 +18,6 @@ import { useOwnerStore } from "./state/ownerStore";
 import { useSettingsStore } from "./state/settingsStore";
 import { syncDomTheme } from "./theme/syncDomTheme";
 import { notifyAlert } from "./ui/notifications";
-import { GlanceGuardLogo } from "./ui/components/GlanceGuardLogo";
-import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
 import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
 import { SettingsScreen } from "./ui/screens/SettingsScreen";
@@ -27,6 +25,7 @@ import { LicenseGateScreen } from "./ui/screens/LicenseGateScreen";
 import { OnboardingScreen } from "./ui/screens/OnboardingScreen";
 import { UpdateBanner } from "./ui/components/UpdateBanner";
 import { syncBrowserSentry } from "./telemetry/syncBrowserSentry";
+import brandIcon from "../src-tauri/icons/32x32.png";
 
 const App = () => {
   const activeScreen = useAppStore((state) => state.activeScreen);
@@ -207,7 +206,15 @@ const App = () => {
     return (
       <div className="app">
         <main className="app__main">
-          <ModelDownloadScreen onReady={() => setModelsOk(true)} />
+          <div className="screen model-fatal">
+            <h1 className="model-fatal__title">Face models could not be loaded</h1>
+            <p className="muted model-fatal__body">
+              The bundled detection files are missing or do not match the expected fingerprints. Install
+              a fresh build from GlanceGuard, or if you run from source run{" "}
+              <code className="inline-code">scripts/download-buffalo-s-models.sh</code>
+              {" "}and rebuild.
+            </p>
+          </div>
         </main>
       </div>
     );
@@ -252,7 +259,7 @@ const App = () => {
       <header className="app__header">
         <div className="brand">
           <div className="brand__icon">
-            <GlanceGuardLogo aria-hidden />
+            <img src={brandIcon} alt="" aria-hidden />
           </div>
           <div className="brand__title">GlanceGuard</div>
         </div>
