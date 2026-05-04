@@ -60,7 +60,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhENTNBRDA5M0JGRjA4REYKUldUZkNQODdDYTFUamZDQlp5MXNvdE9NUXRyTTVyRVZUTmpIcXNXODNBQ2ZlYldhb2k3WkRBY04K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4N0YzRDlEQUJBNTc4NzEKUldSeGVLV3JuVDEvU0Y1OWYzV1pYWTdyQXdseGZ3MTFVRFFZYmFNMTcvelV1bEJ1a1c3QVAwUGQK",
       "endpoints": [
         "https://updates.glanceguard.app/{{target}}/{{current_version}}"
       ]
