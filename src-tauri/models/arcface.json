@@ -1,7 +1,7 @@
 {
-  "model_file": "models/arcface_w600k_r50.onnx",
+  "model_file": "models/w600k_mbf.onnx",
   "input_name": "input.1",
-  "output_name": "683",
+  "output_name": "516",
   "input_width": 112,
   "input_height": 112,
   "mean": [127.5, 127.5, 127.5],

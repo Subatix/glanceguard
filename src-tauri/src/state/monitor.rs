@@ -28,6 +28,16 @@ const MAX_TRACKED_FACES: usize = 2;
 const SIMILARITY_CACHE_TTL: Duration = Duration::from_millis(180);
 const DEBUG_JPEG_QUALITY: u8 = 35;
 
+fn require_matching_embedder_model(profile: &OwnerProfile, embedder_model_file: &str) -> Result<(), String> {
+    if profile.model.name != embedder_model_file {
+        return Err(format!(
+            "Owner was enrolled with embedder `{}`, but the app is configured for `{}`. Clear the owner profile and enroll again.",
+            profile.model.name, embedder_model_file
+        ));
+    }
+    Ok(())
+}
+
 #[derive(Clone)]
 struct FaceSimilaritySample {
     bbox: crate::cv::types::BoundingBox,
@@ -85,7 +95,17 @@ fn run_loop(
     let detector_config = load_detector_config(&app)?;
     let embedder_config = load_embedder_config(&app)?;
     let mut detector = FaceDetector::new(&app, detector_config)?;
-    let mut embedder = FaceEmbedder::new(&app, embedder_config)?;
+    let mut embedder = FaceEmbedder::new(&app, embedder_config.clone())?;
+
+    {
+        let owner_guard = owner
+            .lock()
+            .map_err(|_| "Owner lock poisoned".to_string())?;
+        let profile = owner_guard
+            .as_ref()
+            .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
+        require_matching_embedder_model(profile, &embedder_config.model_file)?;
+    }
 
     let mut camera = open_camera(&selection)?;
     camera.open_stream().map_err(|e| e.to_string())?;
