@@ -30,6 +30,7 @@ pub struct MonitorHandle {
 }
 
 const TARGET_FRAME_INTERVAL: Duration = Duration::from_millis(33);
+const UI_FRAME_EVENT_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_TRACKED_FACES: usize = 2;
 const DEBUG_JPEG_QUALITY: u8 = 35;
 const CONSECUTIVE_ERROR_STOP: u32 = 5;
@@ -124,6 +125,9 @@ fn monitor_worker(
         let mut consecutive_failures = 0u32;
         let mut frame_count: u64 = 0;
         let mut last_log = Instant::now();
+        let mut last_ui_emit = Instant::now()
+            .checked_sub(UI_FRAME_EVENT_INTERVAL)
+            .unwrap_or_else(Instant::now);
 
         while !stop.load(Ordering::SeqCst) {
             let frame_start = Instant::now();
@@ -296,38 +300,41 @@ fn monitor_worker(
                     MonitorState::Cooldown => "cooldown",
                 };
 
-                if debug_overlay {
-                    let mut image_buffer = Vec::new();
-                    let mut encoder =
-                        JpegEncoder::new_with_quality(&mut image_buffer, DEBUG_JPEG_QUALITY);
-                    encoder
-                        .encode(
-                            rgb.as_raw(),
-                            rgb.width(),
-                            rgb.height(),
-                            image::ExtendedColorType::Rgb8,
-                        )
-                        .map_err(|e| e.to_string())?;
+                if last_ui_emit.elapsed() >= UI_FRAME_EVENT_INTERVAL {
+                    last_ui_emit = Instant::now();
+                    if debug_overlay {
+                        let mut image_buffer = Vec::new();
+                        let mut encoder =
+                            JpegEncoder::new_with_quality(&mut image_buffer, DEBUG_JPEG_QUALITY);
+                        encoder
+                            .encode(
+                                rgb.as_raw(),
+                                rgb.width(),
+                                rgb.height(),
+                                image::ExtendedColorType::Rgb8,
+                            )
+                            .map_err(|e| e.to_string())?;
 
-                    let frame_event = FrameEvent {
-                        frame_width: rgb.width(),
-                        frame_height: rgb.height(),
-                        faces: debug_faces,
-                        observer_score: max_score,
-                        state: state_label.to_string(),
-                        image: Some(image_buffer),
-                    };
-                    let _ = app.emit("cv:frame", frame_event);
-                } else {
-                    let frame_event = FrameEvent {
-                        frame_width: rgb.width(),
-                        frame_height: rgb.height(),
-                        faces: Vec::new(),
-                        observer_score: max_score,
-                        state: state_label.to_string(),
-                        image: None,
-                    };
-                    let _ = app.emit("cv:frame", frame_event);
+                        let frame_event = FrameEvent {
+                            frame_width: rgb.width(),
+                            frame_height: rgb.height(),
+                            faces: debug_faces,
+                            observer_score: max_score,
+                            state: state_label.to_string(),
+                            image: Some(image_buffer),
+                        };
+                        let _ = app.emit("cv:frame", frame_event);
+                    } else {
+                        let frame_event = FrameEvent {
+                            frame_width: rgb.width(),
+                            frame_height: rgb.height(),
+                            faces: Vec::new(),
+                            observer_score: max_score,
+                            state: state_label.to_string(),
+                            image: None,
+                        };
+                        let _ = app.emit("cv:frame", frame_event);
+                    }
                 }
 
                 Ok(())
