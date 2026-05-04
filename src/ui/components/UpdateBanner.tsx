@@ -2,6 +2,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import type { DownloadEvent } from "@tauri-apps/plugin-updater";
 import { check } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "./Button";
 
 type Phase = "idle" | "available" | "working" | "error";
 
@@ -95,13 +96,12 @@ export const UpdateBanner = ({ autoCheck }: Props) => {
         <div className="update-banner__row">
           <span>
             GlanceGuard {latestVersion} is available.&nbsp;
-            <button type="button" className="button button--quiet" onClick={() => refresh()}>
+            <Button variant="quiet" size="small" onClick={() => refresh()}>
               Refresh check
-            </button>
+            </Button>
           </span>
-          <button
-            type="button"
-            className="button"
+          <Button
+            variant="secondary"
             onClick={() =>
               downloadAndRestart().catch((e: unknown) => {
                 setErrorMessage(e instanceof Error ? e.message : String(e));
@@ -110,7 +110,7 @@ export const UpdateBanner = ({ autoCheck }: Props) => {
             }
           >
             Download &amp; restart
-          </button>
+          </Button>
         </div>
       ) : null}
       {phase === "working" ? (
@@ -126,9 +126,9 @@ export const UpdateBanner = ({ autoCheck }: Props) => {
       {phase === "error" && errorMessage ? (
         <div className="update-banner__row">
           <span>Update error: {errorMessage}</span>
-          <button type="button" className="button" onClick={() => refresh()}>
+          <Button variant="secondary" onClick={() => refresh()}>
             Retry
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

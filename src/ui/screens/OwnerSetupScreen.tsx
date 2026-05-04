@@ -7,6 +7,9 @@ import {
 } from "../../cv/ipc";
 import { useAppStore } from "../../state/appStore";
 import { useOwnerStore } from "../../state/ownerStore";
+import { Button } from "../components/Button";
+import { ScreenHeader } from "../components/ScreenHeader";
+import { Surface } from "../components/Surface";
 
 export const OwnerSetupScreen = () => {
   const ownerEnrolled = useOwnerStore((state) => state.ownerEnrolled);
@@ -132,25 +135,23 @@ export const OwnerSetupScreen = () => {
   }, [stopCamera]);
 
   return (
-    <div className="screen">
-      <div className="screen__header">
-        <h2>Owner setup</h2>
-        <p>Enroll yourself so the app can distinguish you from observers.</p>
-        <p className="owner-setup__privacy-note muted">
-          Your face stays on this Mac. The profile is encrypted; keys live in macOS Keychain. No enrollment data is sent
-          over the network.
-        </p>
-      </div>
+    <div className="screen identity-screen">
+      <ScreenHeader title="Owner" align="left">
+        <p>Enroll once so GlanceGuard can tell you apart from everyone else.</p>
+      </ScreenHeader>
 
-      <div className="panel">
-        <div className={`owner-status ${ownerEnrolled ? "is-enrolled" : "is-missing"}`}>
-          <div className="owner-status__title">
-            {ownerEnrolled ? "Owner enrolled and saved locally" : "Owner not enrolled"}
+      <Surface className="identity-panel">
+        <div className="identity-panel__summary">
+          <div>
+            <h3>{ownerEnrolled ? "Owner saved" : "Owner missing"}</h3>
+            <p>
+              {ownerEnrolled
+                ? "The encrypted owner profile is stored on this Mac."
+                : "Monitoring starts after one local owner profile is saved."}
+            </p>
           </div>
-          <div className="owner-status__meta">
-            {ownerEnrolled
-              ? "Your owner profile is stored on this device. You do not need to upload again unless you clear it."
-              : "Enroll once to enable monitoring and owner recognition."}
+          <div className="identity-panel__state" data-state={ownerEnrolled ? "saved" : "missing"}>
+            {ownerEnrolled ? "Saved" : "Required"}
           </div>
         </div>
 
@@ -164,67 +165,28 @@ export const OwnerSetupScreen = () => {
           />
         </div>
 
-        <div className="field">
-          <label className="field__label">Upload photo</label>
-          <input
-            className="field__input"
-            type="file"
-            accept="image/*"
-            disabled={loading}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              if (!file) return;
-              setLoading(true);
-              setError(undefined);
-              file
-                .arrayBuffer()
-                .then((buffer) => Array.from(new Uint8Array(buffer)))
-                .then((bytes) => enrollOwnerFromImage(bytes))
-                .then(() => refreshStatus())
-                .catch((err) => setError(String(err)))
-                .finally(() => setLoading(false));
-            }}
-          />
-        </div>
-
         {error ? <div className="status__error">{error}</div> : null}
 
-        <div className="actions">
-          <button
-            className="button button--primary"
-            disabled={loading}
-            onClick={() => quickCapture()}
-          >
-            {loading ? "Processing..." : "Quick capture"}
-          </button>
+        <div className="identity-panel__actions">
+          <Button variant="primary" disabled={loading} onClick={() => quickCapture()}>
+            {loading ? "Processing..." : ownerEnrolled ? "Replace with quick capture" : "Quick capture"}
+          </Button>
           {!cameraActive ? (
-            <button
-              className="button button--ghost"
-              disabled={loading}
-              onClick={() => startCamera()}
-            >
+            <Button variant="ghost" disabled={loading} onClick={() => startCamera()}>
               Open preview
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                className="button button--ghost"
-                disabled={loading}
-                onClick={() => captureAndEnroll()}
-              >
+              <Button variant="ghost" disabled={loading} onClick={() => captureAndEnroll()}>
                 Capture from preview
-              </button>
-              <button
-                className="button button--ghost"
-                disabled={loading}
-                onClick={() => stopCamera()}
-              >
+              </Button>
+              <Button variant="ghost" disabled={loading} onClick={() => stopCamera()}>
                 Cancel
-              </button>
+              </Button>
             </>
           )}
-          <button
-            className="button button--ghost"
+          <Button
+            variant="danger"
             disabled={!ownerEnrolled || loading}
             onClick={() => {
               setLoading(true);
@@ -235,9 +197,13 @@ export const OwnerSetupScreen = () => {
             }}
           >
             Clear owner
-          </button>
+          </Button>
         </div>
-      </div>
+
+        <p className="identity-panel__privacy">
+          Face data stays on this Mac. The encryption key lives in macOS Keychain.
+        </p>
+      </Surface>
     </div>
   );
 };

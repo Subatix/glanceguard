@@ -1,12 +1,15 @@
 import { useAppStore } from "../../state/appStore";
 import { useMonitorStore } from "../../state/monitorStore";
+import type { MonitorStatus } from "../../state/monitorStore";
 import { useOwnerStore } from "../../state/ownerStore";
 import { useSettingsStore } from "../../state/settingsStore";
+import { cameraSelectionKey } from "../../cv/utils";
+import { Button } from "../components/Button";
 import { CameraSelect } from "../components/CameraSelect";
 import { DebugOverlayCanvas as LiveDetectionPreview } from "../components/DebugOverlayCanvas";
 import { EmptyState, emptyStatePresets } from "../components/EmptyState";
 import { Overlay } from "../components/Overlay";
-import { StatusCard } from "../components/StatusCard";
+import { Surface } from "../components/Surface";
 import {
   listCameras,
   setCamera,
@@ -14,6 +17,32 @@ import {
   startMonitoring,
   stopMonitoring,
 } from "../../cv/ipc";
+
+const protectionCopy: Record<MonitorStatus, { title: string; body: string }> = {
+  idle: {
+    title: "Protection is off",
+    body: "Start monitoring when you want GlanceGuard to watch for nearby observers.",
+  },
+  monitoring: {
+    title: "Protection is on",
+    body: "GlanceGuard is watching locally. Frames and face data stay on this Mac.",
+  },
+  alert: {
+    title: "Possible observer",
+    body: "Someone may be looking at your screen. The alert is based on local camera analysis.",
+  },
+  cooldown: {
+    title: "Cooling down",
+    body: "An alert was just sent. Monitoring continues quietly before repeating another alert.",
+  },
+};
+
+const monitorStatusLabels: Record<MonitorStatus, string> = {
+  idle: "Idle",
+  monitoring: "Monitoring",
+  alert: "Alert",
+  cooldown: "Cooling down",
+};
 
 export const MonitoringScreen = () => {
   const cameras = useSettingsStore((state) => state.cameras);
@@ -29,114 +58,145 @@ export const MonitoringScreen = () => {
   const setMonitorStatus = useMonitorStore((state) => state.setMonitorStatus);
 
   const isMonitoring = monitor.status !== "idle";
+  const readyToMonitor = Boolean(settings.camera && ownerEnrolled);
+  const selectedCamera = settings.camera;
+  const selectedCameraName = selectedCamera
+    ? cameras.find((camera) => cameraSelectionKey(camera.id) === cameraSelectionKey(selectedCamera))?.name ??
+      "Camera selected"
+    : "No camera";
+  const statusCopy = protectionCopy[monitor.status];
 
   return (
-    <div className="screen screen--dashboard">
-      <div className="screen__header">
-        <h2>Monitoring</h2>
-        <p>Detects a second face and alerts when someone looks at your screen.</p>
-      </div>
+    <div className="screen protection-screen">
+      <Surface className="protection-panel" aria-live="polite">
+        <div className="protection-panel__status" data-state={monitor.status}>
+          <span className="protection-panel__dot" aria-hidden />
+          <span>{monitorStatusLabels[monitor.status]}</span>
+        </div>
 
-      <div className="grid">
-        <div className="panel">
-          <CameraSelect
-            cameras={cameras}
-            selected={settings.camera}
-            onChange={(selection) => {
-              setCamera(selection)
-                .then((updated) => setSettingsState(updated))
-                .catch((err) => setError(String(err)));
-            }}
-            onRetryList={() => {
-              listCameras()
-                .then((c) => setCameras(c))
-                .catch((err) => setError(String(err)));
-            }}
-          />
-          {!ownerEnrolled ? (
-            <div className="monitoring-empty-owner">
-              <EmptyState
-                {...emptyStatePresets.ownerNotEnrolled({
-                  label: "Open Owner setup",
-                  onClick: () => setActiveScreen("owner"),
-                  variant: "primary",
-                })}
+        <div className="protection-panel__copy">
+          <h2>{statusCopy.title}</h2>
+          <p>{statusCopy.body}</p>
+        </div>
+
+        <div className="protection-panel__meta" aria-label="Setup status">
+          <span>{selectedCameraName}</span>
+          <span>{ownerEnrolled ? "Owner enrolled" : "Owner missing"}</span>
+          <span>On-device</span>
+        </div>
+
+        {!ownerEnrolled ? (
+          <div className="protection-panel__setup">
+            <EmptyState
+              {...emptyStatePresets.ownerNotEnrolled({
+                label: "Set up owner",
+                onClick: () => setActiveScreen("owner"),
+                variant: "primary",
+              })}
+            />
+          </div>
+        ) : null}
+
+        {ownerEnrolled && !settings.camera ? (
+          <div className="protection-panel__setup">
+            <CameraSelect
+              cameras={cameras}
+              selected={settings.camera}
+              onChange={(selection) => {
+                setCamera(selection)
+                  .then((updated) => setSettingsState(updated))
+                  .catch((err) => setError(String(err)));
+              }}
+              onRetryList={() => {
+                listCameras()
+                  .then((c) => setCameras(c))
+                  .catch((err) => setError(String(err)));
+              }}
+            />
+          </div>
+        ) : null}
+
+        <div className="protection-panel__actions">
+          {readyToMonitor ? (
+            isMonitoring ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  stopMonitoring()
+                    .then(() => setMonitorStatus("idle"))
+                    .catch((err) => setError(String(err)));
+                }}
+              >
+                Stop monitoring
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  startMonitoring()
+                    .then(() => setMonitorStatus("monitoring"))
+                    .catch((err) => setError(String(err)));
+                }}
+              >
+                Start monitoring
+              </Button>
+            )
+          ) : null}
+        </div>
+
+        {error ? <div className="status__error">{error}</div> : null}
+
+        <details className="protection-details">
+          <summary>Details</summary>
+          <div className="protection-details__body">
+            <div className="detail-row">
+              <span>Observer score</span>
+              <strong>{typeof monitor.observerScore === "number" ? monitor.observerScore.toFixed(2) : "—"}</strong>
+            </div>
+            <CameraSelect
+              cameras={cameras}
+              selected={settings.camera}
+              onChange={(selection) => {
+                setCamera(selection)
+                  .then((updated) => setSettingsState(updated))
+                  .catch((err) => setError(String(err)));
+              }}
+              onRetryList={() => {
+                listCameras()
+                  .then((c) => setCameras(c))
+                  .catch((err) => setError(String(err)));
+              }}
+            />
+            <div className="field field--row">
+              <div>
+                <label className="field__label" htmlFor="monitoring-live-preview">
+                  Live detection preview
+                </label>
+                <p className="field__hint">Shows local frames and face boxes only while monitoring.</p>
+              </div>
+              <input
+                id="monitoring-live-preview"
+                type="checkbox"
+                checked={settings.debugOverlay}
+                onChange={(event) => {
+                  setSettingsCommand({ debugOverlay: event.currentTarget.checked })
+                    .then((updated) => setSettingsState(updated))
+                    .catch((err) => setError(String(err)));
+                }}
               />
             </div>
-          ) : null}
-          <div className="actions">
-            <button
-              type="button"
-              className="button button--primary"
-              disabled={!settings.camera || !ownerEnrolled}
-              onClick={() => {
-                startMonitoring()
-                  .then(() => setMonitorStatus("monitoring"))
-                  .catch((err) => setError(String(err)));
-              }}
-            >
-              Start monitoring
-            </button>
-            <button
-              type="button"
-              className="button button--ghost"
-              disabled={!isMonitoring}
-              onClick={() => {
-                stopMonitoring()
-                  .then(() => setMonitorStatus("idle"))
-                  .catch((err) => setError(String(err)));
-              }}
-            >
-              Stop
-            </button>
+            {settings.debugOverlay ? (
+              <div
+                className={`debug-panel__canvas ${
+                  isMonitoring && !debugFrame ? "debug-panel__canvas--shimmer" : ""
+                }`}
+              >
+                <LiveDetectionPreview frame={debugFrame} />
+              </div>
+            ) : null}
           </div>
-        </div>
-
-        <StatusCard
-          variant={isMonitoring && settings.debugOverlay && !debugFrame ? "skeleton" : "default"}
-          status={monitor.status}
-          observerScore={monitor.observerScore}
-          error={error}
-        />
-      </div>
-
-      {isMonitoring && !settings.debugOverlay ? (
-        <div className="callout">
-          <div className="callout__title">Monitoring is active</div>
-          <div className="callout__body">
-            Live detection preview is hidden. Turn it on if you want to see the camera view
-            and face boxes while monitoring.
-          </div>
-          <button
-            type="button"
-            className="button button--primary button--small"
-            onClick={() => {
-              setSettingsCommand({ debugOverlay: true })
-                .then((updated) => setSettingsState(updated))
-                .catch((err) => setError(String(err)));
-            }}
-          >
-            Show live preview
-          </button>
-        </div>
-      ) : null}
-
-      <div className="debug-panel">
-        <div className="debug-panel__header">
-          <span>Live detection preview</span>
-          <span>{settings.debugOverlay ? "On" : "Off"}</span>
-        </div>
-        <div
-          className={`debug-panel__canvas ${
-            isMonitoring && settings.debugOverlay && !debugFrame ? "debug-panel__canvas--shimmer" : ""
-          }`}
-        >
-          {settings.debugOverlay ? <LiveDetectionPreview frame={debugFrame} /> : null}
-          {!settings.debugOverlay ? (
-            <div className="debug-panel__empty">Turn on Live detection preview in Settings.</div>
-          ) : null}
-        </div>
-      </div>
+        </details>
+      </Surface>
 
       <Overlay visible={monitor.status === "alert"} message="Someone may be looking at your screen." />
     </div>

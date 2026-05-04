@@ -6,8 +6,12 @@ import {
   persistOnboardingStep,
 } from "../../state/firstRunPersistence";
 import { listCameras, setCamera, getOwnerStatus } from "../../cv/ipc";
+import { Button } from "../components/Button";
 import { EnrollmentWizard } from "../components/EnrollmentWizard";
 import { PermissionExplainer } from "../components/PermissionExplainer";
+import { ScreenHeader } from "../components/ScreenHeader";
+import { StatusPill } from "../components/StatusPill";
+import { Surface } from "../components/Surface";
 
 export const OnboardingScreen = () => {
   const step = useAppStore((s) => s.onboarding.step);
@@ -27,11 +31,10 @@ export const OnboardingScreen = () => {
   if (step === "welcome") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="screen__header">
-          <h2>Welcome</h2>
+        <ScreenHeader eyebrow="Welcome" title="Set up GlanceGuard">
           <p>GlanceGuard watches your webcam to warn when someone else may be looking at your screen.</p>
-        </div>
-        <div className="panel">
+        </ScreenHeader>
+        <Surface className="panel">
           <PermissionExplainer
             title="Before we start"
             body={
@@ -43,7 +46,7 @@ export const OnboardingScreen = () => {
             primaryLabel="Continue"
             onPrimary={() => void advance("camera-explainer")}
           />
-        </div>
+        </Surface>
       </div>
     );
   }
@@ -51,11 +54,10 @@ export const OnboardingScreen = () => {
   if (step === "camera-explainer") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="screen__header">
-          <h2>Camera access</h2>
+        <ScreenHeader eyebrow="Step 1 of 3" title="Camera access">
           <p>macOS will show its own permission dialog after you continue — not before.</p>
-        </div>
-        <div className="panel">
+        </ScreenHeader>
+        <Surface className="panel">
           <PermissionExplainer
             title="Why the camera"
             body={
@@ -69,7 +71,7 @@ export const OnboardingScreen = () => {
             secondaryLabel="Back"
             onSecondary={() => void advance("welcome")}
           />
-        </div>
+        </Surface>
       </div>
     );
   }
@@ -77,11 +79,10 @@ export const OnboardingScreen = () => {
   if (step === "camera-grant") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="screen__header">
-          <h2>Allow the camera</h2>
+        <ScreenHeader eyebrow="Step 1 of 3" title="Allow the camera">
           <p>The next button opens the camera permission prompt so we can show your preview.</p>
-        </div>
-        <div className="panel">
+        </ScreenHeader>
+        <Surface className="panel">
           <PermissionExplainer
             title="Camera permission"
             body={
@@ -123,7 +124,7 @@ export const OnboardingScreen = () => {
             onSecondary={() => void advance("camera-explainer")}
           />
           {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
-        </div>
+        </Surface>
       </div>
     );
   }
@@ -131,11 +132,10 @@ export const OnboardingScreen = () => {
   if (step === "keychain-explainer") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="screen__header">
-          <h2>macOS Keychain</h2>
+        <ScreenHeader eyebrow="Step 2 of 3" title="macOS Keychain">
           <p>When you finish enrollment, the app saves an encrypted owner profile.</p>
-        </div>
-        <div className="panel">
+        </ScreenHeader>
+        <Surface className="panel">
           <PermissionExplainer
             title="Encryption key in Keychain"
             body={
@@ -149,7 +149,7 @@ export const OnboardingScreen = () => {
             secondaryLabel="Back"
             onSecondary={() => void advance("camera-grant")}
           />
-        </div>
+        </Surface>
       </div>
     );
   }
@@ -157,7 +157,10 @@ export const OnboardingScreen = () => {
   if (step === "enrollment") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="panel panel--wide">
+        <Surface className="panel panel--wide">
+          <div className="panel__header panel__header--center">
+            <StatusPill tone="info">Step 3 of 3</StatusPill>
+          </div>
           {error ? <div className="status__error onboarding-screen__inline-error">{error}</div> : null}
           <EnrollmentWizard
             onComplete={() => {
@@ -171,7 +174,7 @@ export const OnboardingScreen = () => {
             onClearError={() => setError(undefined)}
             onError={(msg) => setError(msg)}
           />
-        </div>
+        </Surface>
       </div>
     );
   }
@@ -179,19 +182,17 @@ export const OnboardingScreen = () => {
   if (step === "done") {
     return (
       <div className="screen screen--wide onboarding-screen">
-        <div className="screen__header">
-          <h2>You are set</h2>
+        <ScreenHeader eyebrow="Ready" title="You are set">
           <p>Monitoring needs an enrolled owner — you are ready to open the Monitoring tab.</p>
-        </div>
-        <div className="panel">
+        </ScreenHeader>
+        <Surface className="panel">
           <p className="onboarding-screen__done-body">
             Owner enrollment is saved on this Mac. You can re-run owner setup from the Owner tab if you ever need to
             replace it.
           </p>
           <div className="actions">
-            <button
-              type="button"
-              className="button button--primary"
+            <Button
+              variant="primary"
               onClick={() => {
                 void persistOnboardingCompleted(true).then(() => {
                   setOnboardingCompleted(true);
@@ -199,9 +200,9 @@ export const OnboardingScreen = () => {
               }}
             >
               Go to app
-            </button>
+            </Button>
           </div>
-        </div>
+        </Surface>
       </div>
     );
   }

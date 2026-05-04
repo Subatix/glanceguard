@@ -29,7 +29,7 @@ describe("OwnerSetupScreen", () => {
 
   it("renders enrollment actions when IPC is mocked", async () => {
     render(<OwnerSetupScreen />);
-    expect(screen.getByRole("heading", { name: /Owner setup/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Owner$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Quick capture/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Clear owner/i })).toBeDisabled();
   });

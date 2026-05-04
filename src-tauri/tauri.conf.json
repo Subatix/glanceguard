@@ -14,8 +14,10 @@
       {
         "label": "main",
         "title": "GlanceGuard",
-        "width": 800,
-        "height": 600
+        "hiddenTitle": true,
+        "titleBarStyle": "Transparent",
+        "width": 900,
+        "height": 660
       }
     ],
     "security": {

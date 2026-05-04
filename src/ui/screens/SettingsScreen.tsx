@@ -4,8 +4,11 @@ import { cameraSelectionKey } from "../../cv/utils";
 import { useAppStore } from "../../state/appStore";
 import { useSettingsStore } from "../../state/settingsStore";
 import type { AppTheme, NotificationStyle, Sensitivity } from "../../settings/types";
+import { PreferenceGroup, PreferenceRow } from "../components/PreferenceGroup";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { SegmentedControl } from "../components/SegmentedControl";
 import { SettingsCameraPreview } from "../components/SettingsCameraPreview";
+import { Surface } from "../components/Surface";
 
 const SENSITIVITY_OPTIONS: {
   value: Sensitivity;
@@ -63,6 +66,7 @@ export const SettingsScreen = () => {
   const cameras = useSettingsStore((state) => state.cameras);
   const setSettingsState = useSettingsStore((state) => state.setSettings);
   const setError = useAppStore((state) => state.setError);
+  const selectedCameraKey = settings.camera ? cameraSelectionKey(settings.camera) : "";
 
   const persist = async (update: Parameters<typeof setSettings>[0]) => {
     const updated = await setSettings(update);
@@ -79,178 +83,162 @@ export const SettingsScreen = () => {
   };
 
   return (
-    <div className="screen">
-      <div className="screen__header">
-        <h2>Settings</h2>
-        <p>Sensitivity, cooldown, appearance, and startup behavior.</p>
-      </div>
+    <div className="screen settings-screen">
+      <ScreenHeader title="Settings" align="left">
+        <p>Small adjustments for alerts, camera, startup, and privacy.</p>
+      </ScreenHeader>
 
-      <div className="panel">
-        <SegmentedControl
-          label="Sensitivity"
-          name="sensitivity"
-          value={settings.sensitivity}
-          options={SENSITIVITY_OPTIONS}
-          onChange={(value) => {
-            persist({ sensitivity: value }).catch((err) => setError(String(err)));
-          }}
-        />
-
-        <SegmentedControl
-          label="Cooldown between alerts"
-          name="cooldown"
-          value={settings.cooldownSec}
-          options={COOLDOWN_OPTIONS}
-          onChange={(value) => {
-            persist({ cooldownSec: value }).catch((err) => setError(String(err)));
-          }}
-        />
-
-        <SegmentedControl
-          label="Theme"
-          name="theme"
-          value={settings.theme ?? "system"}
-          options={THEME_OPTIONS}
-          onChange={(value) => {
-            persist({ theme: value }).catch((err) => setError(String(err)));
-          }}
-        />
-
-        <SegmentedControl
-          label="Notification style"
-          name="notification"
-          value={settings.notificationStyle ?? "native"}
-          options={NOTIFY_OPTIONS}
-          onChange={(value) => {
-            persist({ notificationStyle: value }).catch((err) => setError(String(err)));
-          }}
-        />
-
-        <div className="field field--row">
-          <label className="field__label" htmlFor="settings-start-login">
-            Start at login
-          </label>
-          <input
-            id="settings-start-login"
-            type="checkbox"
-            checked={Boolean(settings.startAtLogin)}
-            onChange={(event) => {
-              syncAutostartToggle(event.currentTarget.checked).catch((err) =>
-                setError(String(err)),
-              );
+      <Surface className="preferences-panel">
+        <PreferenceGroup title="Detection" description="Tune how quickly GlanceGuard reacts.">
+          <SegmentedControl
+            label="Sensitivity"
+            name="sensitivity"
+            value={settings.sensitivity}
+            options={SENSITIVITY_OPTIONS}
+            onChange={(value) => {
+              persist({ sensitivity: value }).catch((err) => setError(String(err)));
             }}
           />
-        </div>
-
-        <div className="field">
-          <label className="field__label" htmlFor="settings-camera-select">
-            Camera
-          </label>
-          <select
-            id="settings-camera-select"
-            className="field__input"
-            value={settings.camera ? cameraSelectionKey(settings.camera) : ""}
-            onChange={(event) => {
-              const key = event.currentTarget.value;
-              const cam = cameras.find((c) => cameraSelectionKey(c.id) === key);
-              if (!cam) return;
-              persist({ camera: cam.id }).catch((err) => setError(String(err)));
+          <SegmentedControl
+            label="Cooldown between alerts"
+            name="cooldown"
+            value={settings.cooldownSec}
+            options={COOLDOWN_OPTIONS}
+            onChange={(value) => {
+              persist({ cooldownSec: value }).catch((err) => setError(String(err)));
             }}
+          />
+          <PreferenceRow label="Low-light face boost" hint="Improves matching when your room is dim.">
+            <input
+              id="settings-clahe"
+              type="checkbox"
+              checked={Boolean(settings.claheFacePreproc)}
+              onChange={(event) => {
+                persist({ claheFacePreproc: event.currentTarget.checked }).catch((err) =>
+                  setError(String(err)),
+                );
+              }}
+            />
+          </PreferenceRow>
+        </PreferenceGroup>
+
+        <PreferenceGroup title="Camera" description="Choose the camera used for local detection.">
+          <PreferenceRow
+            label="Camera"
+            hint={settings.camera ? "Selected for monitoring." : "Required before monitoring can start."}
           >
-            <option value="" disabled>
-              Select a camera
-            </option>
-            {cameras.map((camera) => (
-              <option key={cameraSelectionKey(camera.id)} value={cameraSelectionKey(camera.id)}>
-                {camera.name}
+            <select
+              id="settings-camera-select"
+              className="field__input"
+              value={selectedCameraKey}
+              onChange={(event) => {
+                const key = event.currentTarget.value;
+                const cam = cameras.find((c) => cameraSelectionKey(c.id) === key);
+                if (!cam) return;
+                persist({ camera: cam.id }).catch((err) => setError(String(err)));
+              }}
+            >
+              <option value="" disabled>
+                Select a camera
               </option>
-            ))}
-          </select>
-        </div>
+              {cameras.map((camera) => (
+                <option key={cameraSelectionKey(camera.id)} value={cameraSelectionKey(camera.id)}>
+                  {camera.name}
+                </option>
+              ))}
+            </select>
+          </PreferenceRow>
+          <PreferenceRow label="Live detection preview" hint="Shows local frames and face boxes while monitoring.">
+            <input
+              id="settings-debug"
+              type="checkbox"
+              checked={settings.debugOverlay}
+              onChange={(event) => {
+                persist({ debugOverlay: event.currentTarget.checked }).catch((err) =>
+                  setError(String(err)),
+                );
+              }}
+            />
+          </PreferenceRow>
+          <details className="settings-preview">
+            <summary>Preview framing</summary>
+            <SettingsCameraPreview cameras={cameras} selected={settings.camera} />
+          </details>
+        </PreferenceGroup>
 
-        <SettingsCameraPreview cameras={cameras} selected={settings.camera} />
-
-        <div className="field field--row">
-          <label className="field__label" htmlFor="settings-clahe">
-            Low-light face boost
-          </label>
-          <input
-            id="settings-clahe"
-            type="checkbox"
-            checked={Boolean(settings.claheFacePreproc)}
-            onChange={(event) => {
-              persist({ claheFacePreproc: event.currentTarget.checked }).catch((err) =>
-                setError(String(err)),
-              );
+        <PreferenceGroup title="App">
+          <SegmentedControl
+            label="Theme"
+            name="theme"
+            value={settings.theme ?? "system"}
+            options={THEME_OPTIONS}
+            onChange={(value) => {
+              persist({ theme: value }).catch((err) => setError(String(err)));
             }}
           />
-        </div>
 
-        <div className="field field--row">
-          <label className="field__label" htmlFor="settings-debug">
-            Live detection preview
-          </label>
-          <input
-            id="settings-debug"
-            type="checkbox"
-            checked={settings.debugOverlay}
-            onChange={(event) => {
-              persist({ debugOverlay: event.currentTarget.checked }).catch((err) =>
-                setError(String(err)),
-              );
+          <SegmentedControl
+            label="Notification style"
+            name="notification"
+            value={settings.notificationStyle ?? "native"}
+            options={NOTIFY_OPTIONS}
+            onChange={(value) => {
+              persist({ notificationStyle: value }).catch((err) => setError(String(err)));
             }}
           />
-        </div>
+          <PreferenceRow label="Start at login" hint="Start quietly when you sign in to this Mac.">
+            <input
+              id="settings-start-login"
+              type="checkbox"
+              checked={Boolean(settings.startAtLogin)}
+              onChange={(event) => {
+                syncAutostartToggle(event.currentTarget.checked).catch((err) =>
+                  setError(String(err)),
+                );
+              }}
+            />
+          </PreferenceRow>
+          <PreferenceRow
+            label="Check for updates"
+            hint="Only checks update metadata; camera frames are not involved."
+          >
+            <input
+              id="settings-check-updates"
+              type="checkbox"
+              checked={Boolean(settings.autoCheckUpdates ?? true)}
+              onChange={(event) => {
+                persist({ autoCheckUpdates: event.currentTarget.checked }).catch((err) =>
+                  setError(String(err)),
+                );
+              }}
+            />
+          </PreferenceRow>
+          <PreferenceRow label="Send crash reports" hint="Optional diagnostics only. No face images or thumbnails.">
+            <input
+              id="settings-telemetry"
+              type="checkbox"
+              checked={Boolean(settings.telemetryEnabled)}
+              onChange={(event) => {
+                persist({ telemetryEnabled: event.currentTarget.checked }).catch((err) =>
+                  setError(String(err)),
+                );
+              }}
+            />
+          </PreferenceRow>
 
-        <div className="field field--row">
-          <label className="field__label" htmlFor="settings-check-updates">
-            Check for app updates automatically
-          </label>
-          <input
-            id="settings-check-updates"
-            type="checkbox"
-            checked={Boolean(settings.autoCheckUpdates ?? true)}
-            onChange={(event) => {
-              persist({ autoCheckUpdates: event.currentTarget.checked }).catch((err) =>
-                setError(String(err)),
-              );
-            }}
-          />
-        </div>
+          <p className="muted settings-shortcut-hint">
+            Pause / resume monitoring: ⌘⌥P (global shortcut).
+          </p>
+        </PreferenceGroup>
 
-        <div className="field field--row">
-          <label className="field__label" htmlFor="settings-telemetry">
-            Send crash reports
-          </label>
-          <input
-            id="settings-telemetry"
-            type="checkbox"
-            checked={Boolean(settings.telemetryEnabled)}
-            onChange={(event) => {
-              persist({ telemetryEnabled: event.currentTarget.checked }).catch((err) =>
-                setError(String(err)),
-              );
-            }}
-          />
-        </div>
-
-        <section className="privacy-panel" aria-labelledby="privacy-panel-title">
-          <h3 id="privacy-panel-title" className="privacy-panel__title">
-            Privacy &amp; data
-          </h3>
+        <PreferenceGroup title="Privacy & data" description="The camera pipeline is designed to stay local.">
           <ul className="privacy-panel__list">
             <li>Face embeddings and enrollment data stay on this Mac inside encrypted storage.</li>
             <li>No frames or thumbnails are uploaded by this app.</li>
-            <li>
-              Crash reports are sent only if you enable them above. They do not include face images or thumbnails.
-            </li>
+            <li>Crash reports are sent only if you enable them. They do not include face images or thumbnails.</li>
           </ul>
-        </section>
-
-        <p className="muted settings-shortcut-hint">
-          Pause / resume monitoring: ⌘⌥P (global shortcut).
-        </p>
-      </div>
+        </PreferenceGroup>
+      </Surface>
     </div>
   );
 };

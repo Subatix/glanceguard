@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { enrollOwnerFromImageBatch, validateEnrollmentSnapshot } from "../../cv/ipc";
 import { requestUserFaceStream } from "../media/requestUserFaceStream";
+import { Button } from "./Button";
 import { PrivacyOnboardingFooter } from "./PrivacyOnboardingFooter";
 
 const POSES = [
@@ -240,18 +241,13 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       </div>
 
       <div className="actions">
-        <button
-          type="button"
-          className="button button--primary"
-          disabled={busy || !cameraReady}
-          onClick={() => void captureFrame()}
-        >
+        <Button variant="primary" disabled={busy || !cameraReady} onClick={() => void captureFrame()}>
           {busy
             ? lastPoseCapture
               ? "Enrolling on-device…"
               : "Saving pose…"
             : `Capture ${pose.title.toLowerCase()}`}
-        </button>
+        </Button>
       </div>
 
       <PrivacyOnboardingFooter />

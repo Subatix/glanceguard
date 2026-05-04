@@ -24,8 +24,23 @@ import { SettingsScreen } from "./ui/screens/SettingsScreen";
 import { LicenseGateScreen } from "./ui/screens/LicenseGateScreen";
 import { OnboardingScreen } from "./ui/screens/OnboardingScreen";
 import { UpdateBanner } from "./ui/components/UpdateBanner";
+import { ScreenHeader } from "./ui/components/ScreenHeader";
+import { StatusPill } from "./ui/components/StatusPill";
+import { Surface } from "./ui/components/Surface";
 import { syncBrowserSentry } from "./telemetry/syncBrowserSentry";
-import brandIcon from "../src-tauri/icons/32x32.png";
+
+const monitorStatusLabels = {
+  idle: "Idle",
+  monitoring: "Monitoring",
+  alert: "Alert",
+  cooldown: "Cooling down",
+} as const;
+
+const screenLabels = {
+  monitoring: "Protection",
+  owner: "Owner",
+  settings: "Settings",
+} as const;
 
 const App = () => {
   const activeScreen = useAppStore((state) => state.activeScreen);
@@ -193,10 +208,11 @@ const App = () => {
   if (modelsOk === null) {
     return (
       <div className="app">
-        <main className="app__main">
-          <div className="screen">
-            <p className="muted">Checking model files…</p>
-          </div>
+        <main className="app__main app__main--center">
+          <Surface className="panel boot-panel">
+            <StatusPill tone="info">Starting</StatusPill>
+            <p className="muted">Checking bundled face model files…</p>
+          </Surface>
         </main>
       </div>
     );
@@ -205,16 +221,15 @@ const App = () => {
   if (!modelsOk) {
     return (
       <div className="app">
-        <main className="app__main">
-          <div className="screen model-fatal">
-            <h1 className="model-fatal__title">Face models could not be loaded</h1>
-            <p className="muted model-fatal__body">
-              The bundled detection files are missing or do not match the expected fingerprints. Install
-              a fresh build from GlanceGuard, or if you run from source run{" "}
-              <code className="inline-code">scripts/download-buffalo-s-models.sh</code>
-              {" "}and rebuild.
-            </p>
-          </div>
+        <main className="app__main app__main--center">
+          <Surface className="panel model-fatal">
+            <ScreenHeader eyebrow="Cannot continue" title="Face models could not be loaded">
+              <p>
+                The bundled detection files are missing or do not match the expected fingerprints.
+                Install a fresh GlanceGuard build, or rebuild your development app with verified bundled model assets.
+              </p>
+            </ScreenHeader>
+          </Surface>
         </main>
       </div>
     );
@@ -223,10 +238,11 @@ const App = () => {
   if (!firstRunHydrated) {
     return (
       <div className="app">
-        <main className="app__main">
-          <div className="screen">
-            <p className="muted">Loading preferences…</p>
-          </div>
+        <main className="app__main app__main--center">
+          <Surface className="panel boot-panel">
+            <StatusPill tone="info">Preparing</StatusPill>
+            <p className="muted">Loading local preferences…</p>
+          </Surface>
         </main>
       </div>
     );
@@ -257,46 +273,21 @@ const App = () => {
   return (
     <div className="app">
       <header className="app__header">
-        <div className="brand">
-          <div className="brand__icon">
-            <img src={brandIcon} alt="" aria-hidden />
-          </div>
-          <div className="brand__title">GlanceGuard</div>
-        </div>
         <nav className="nav" role="tablist" aria-label="Primary">
-          <button
-            type="button"
-            role="tab"
-            id="tab-monitoring"
-            aria-selected={activeScreen === "monitoring"}
-            aria-controls="panel-main"
-            className={`nav__item ${activeScreen === "monitoring" ? "is-active" : ""}`}
-            onClick={() => setActiveScreen("monitoring")}
-          >
-            Monitoring
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-owner"
-            aria-selected={activeScreen === "owner"}
-            aria-controls="panel-main"
-            className={`nav__item ${activeScreen === "owner" ? "is-active" : ""}`}
-            onClick={() => setActiveScreen("owner")}
-          >
-            Owner
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="tab-settings"
-            aria-selected={activeScreen === "settings"}
-            aria-controls="panel-main"
-            className={`nav__item ${activeScreen === "settings" ? "is-active" : ""}`}
-            onClick={() => setActiveScreen("settings")}
-          >
-            Settings
-          </button>
+          {(["monitoring", "owner", "settings"] as const).map((screen) => (
+            <button
+              key={screen}
+              type="button"
+              role="tab"
+              id={`tab-${screen}`}
+              aria-selected={activeScreen === screen}
+              aria-controls="panel-main"
+              className={`nav__item ${activeScreen === screen ? "is-active" : ""}`}
+              onClick={() => setActiveScreen(screen)}
+            >
+              {screenLabels[screen]}
+            </button>
+          ))}
         </nav>
         <div className="header-status-slot">
           <button
@@ -310,7 +301,7 @@ const App = () => {
           >
             <span className="header-status__dot" aria-hidden />
             <span className="header-status__label" aria-live="polite">
-              {monitorStatus}
+              {monitorStatusLabels[monitorStatus]}
             </span>
           </button>
         </div>

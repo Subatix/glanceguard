@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Button } from "./Button";
 import { PrivacyOnboardingFooter } from "./PrivacyOnboardingFooter";
 
 export type PermissionExplainerProps = {
@@ -28,18 +29,13 @@ export const PermissionExplainer = ({
       <div className="permission-explainer__body">{body}</div>
       <div className="permission-explainer__actions">
         {secondaryLabel && onSecondary ? (
-          <button type="button" className="button button--ghost" onClick={onSecondary}>
+          <Button variant="ghost" onClick={onSecondary}>
             {secondaryLabel}
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
-          className="button button--primary"
-          disabled={primaryDisabled}
-          onClick={onPrimary}
-        >
+        <Button variant="primary" disabled={primaryDisabled} onClick={onPrimary}>
           {primaryLabel}
-        </button>
+        </Button>
       </div>
       {showPrivacyFooter ? <PrivacyOnboardingFooter /> : null}
     </div>

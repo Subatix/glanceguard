@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Button } from "./Button";
 
 export type EmptyStateCta = {
   label: string;
@@ -21,13 +22,9 @@ export const EmptyState = ({ icon, title, body, primaryCta }: EmptyStateProps) =
       <div className="empty-state__title">{title}</div>
       <p className="empty-state__body">{body}</p>
       {primaryCta ? (
-        <button
-          type="button"
-          className={`button ${variant === "primary" ? "button--primary" : "button--ghost"}`}
-          onClick={primaryCta.onClick}
-        >
+        <Button variant={variant} onClick={primaryCta.onClick}>
           {primaryCta.label}
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -35,31 +32,31 @@ export const EmptyState = ({ icon, title, body, primaryCta }: EmptyStateProps) =
 
 export const emptyStatePresets = {
   noCamera: (cta: EmptyStateCta): EmptyStateProps => ({
-    icon: <span aria-hidden>📷</span>,
+    icon: <span aria-hidden>Camera</span>,
     title: "No camera found",
     body: "Connect a camera or grant access, then try again.",
     primaryCta: cta,
   }),
   cameraBusy: (cta: EmptyStateCta): EmptyStateProps => ({
-    icon: <span aria-hidden>⏳</span>,
+    icon: <span aria-hidden>Busy</span>,
     title: "Camera may be in use",
     body: "Quit other apps using the camera (FaceTime, Zoom, etc.), then retry.",
     primaryCta: cta,
   }),
   noPermission: (cta: EmptyStateCta): EmptyStateProps => ({
-    icon: <span aria-hidden>🚫</span>,
+    icon: <span aria-hidden>Permission</span>,
     title: "Camera permission needed",
     body: "Allow GlanceGuard in System Settings → Privacy & Security → Camera, then return here.",
     primaryCta: cta,
   }),
   modelFailed: (cta: EmptyStateCta): EmptyStateProps => ({
-    icon: <span aria-hidden>⚠️</span>,
+    icon: <span aria-hidden>Models</span>,
     title: "Models unavailable",
-    body: "Face models are missing or did not pass verification. Check your download URL or use local ONNX files.",
+    body: "Bundled face models are missing or did not pass verification. Install a fresh build of GlanceGuard.",
     primaryCta: cta,
   }),
   ownerNotEnrolled: (cta: EmptyStateCta): EmptyStateProps => ({
-    icon: <span aria-hidden>👤</span>,
+    icon: <span aria-hidden>Owner</span>,
     title: "Owner not enrolled",
     body: "Enroll your face once so monitoring can tell you apart from observers.",
     primaryCta: cta,

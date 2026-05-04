@@ -85,7 +85,7 @@ export const DebugOverlayCanvas = ({ frame }: DebugOverlayCanvasProps) => {
     };
 
     void drawLatest().catch((error) => {
-      console.error("Failed to draw debug overlay frame:", error);
+      console.error("Failed to draw live detection preview frame:", error);
       drawingRef.current = false;
     });
   }, [drawFrame, frame]);

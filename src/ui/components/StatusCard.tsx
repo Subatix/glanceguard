@@ -1,4 +1,6 @@
 import type { MonitorStatus } from "../../state/monitorStore";
+import { StatusPill } from "./StatusPill";
+import { Surface } from "./Surface";
 
 type StatusCardProps = {
   variant?: "default" | "skeleton";
@@ -14,15 +16,22 @@ const statusLabels: Record<MonitorStatus, string> = {
   cooldown: "Cooldown",
 };
 
+const statusTones: Record<MonitorStatus, "neutral" | "success" | "warning" | "danger"> = {
+  idle: "neutral",
+  monitoring: "success",
+  alert: "danger",
+  cooldown: "warning",
+};
+
 export const StatusCard = ({ variant = "default", status, observerScore, error }: StatusCardProps) => {
   if (variant === "skeleton") {
     return (
-      <div className="card card--skeleton" aria-busy="true" aria-label="Loading status">
+      <Surface tone="card" className="card card--skeleton" aria-busy="true" aria-label="Loading status">
         <div className="skeleton-line skeleton-line--title" />
         <div className="skeleton-line skeleton-line--hero" />
         <div className="skeleton-line skeleton-line--row" />
         <div className="skeleton-line skeleton-line--row-short" />
-      </div>
+      </Surface>
     );
   }
 
@@ -31,14 +40,16 @@ export const StatusCard = ({ variant = "default", status, observerScore, error }
   }
 
   return (
-    <div className="card">
+    <Surface tone="card" className="card status-card">
       <div className="card__title">Status</div>
-      <div className={`status status--${status}`}>{statusLabels[status]}</div>
+      <StatusPill tone={statusTones[status]} className={`status status--${status}`}>
+        {statusLabels[status]}
+      </StatusPill>
       <div className="status__row">
         <span>Observer score</span>
         <span>{typeof observerScore === "number" ? observerScore.toFixed(2) : "—"}</span>
       </div>
       {error ? <div className="status__error">{error}</div> : null}
-    </div>
+    </Surface>
   );
 };

@@ -4,7 +4,11 @@ import {
   persistLicenseGatePassed,
 } from "../../state/firstRunPersistence";
 import { useLicenseStore } from "../../state/licenseStore";
+import { Button } from "../components/Button";
 import { PrivacyOnboardingFooter } from "../components/PrivacyOnboardingFooter";
+import { ScreenHeader } from "../components/ScreenHeader";
+import { StatusPill } from "../components/StatusPill";
+import { Surface } from "../components/Surface";
 
 /**
  * Temporary license placeholder: only validates the local key format until real
@@ -39,15 +43,17 @@ export const LicenseGateScreen = () => {
 
   return (
     <div className="screen license-gate">
-      <div className="screen__header">
-        <h2>License activation placeholder</h2>
+      <ScreenHeader eyebrow="Placeholder gate" title="License activation placeholder">
         <p>
           Real license validation is not connected in this build yet. This screen only keeps
           the onboarding shape ready while activation is wired.
         </p>
-      </div>
+      </ScreenHeader>
 
-      <div className="panel">
+      <Surface className="panel">
+        <div className="panel__header panel__header--center">
+          <StatusPill tone="warning">Not production licensing</StatusPill>
+        </div>
         <div className="license-gate__notice" role="status">
           <strong>Not production licensing.</strong>
           <span>
@@ -81,18 +87,18 @@ export const LicenseGateScreen = () => {
         {error ? <div className="status__error">{error}</div> : null}
 
         <div className="actions">
-          <button type="button" className="button button--primary" onClick={() => void submit()}>
+          <Button variant="primary" onClick={() => void submit()}>
             Continue with placeholder key
-          </button>
+          </Button>
           {import.meta.env.DEV ? (
-            <button type="button" className="button button--ghost" onClick={() => void skipDevOnly()}>
+            <Button variant="ghost" onClick={() => void skipDevOnly()}>
               Skip placeholder for testing
-            </button>
+            </Button>
           ) : null}
         </div>
 
         <PrivacyOnboardingFooter />
-      </div>
+      </Surface>
     </div>
   );
 };
