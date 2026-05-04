@@ -327,18 +327,6 @@ input[type="file"]::file-selector-button {
   animation: blink 0.8s steps(2) infinite;
 }
 
-.status__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding: var(--space-sm) 0 0;
-  border-top: 1px solid var(--border);
-  color: var(--text-2);
-  font-size: 12px;
-}
-
-.status__row span:last-child,
 .detail-row strong {
   color: var(--text);
   font-family: var(--mono);

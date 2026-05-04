@@ -187,8 +187,7 @@ export const OnboardingScreen = () => {
         </ScreenHeader>
         <Surface className="panel">
           <p className="onboarding-screen__done-body">
-            Owner enrollment is saved on this Mac. You can re-run owner setup from the Owner tab if you ever need to
-            replace it.
+            Owner enrollment is saved on this Mac. Use the Owner tab if you ever need to replace it.
           </p>
           <div className="actions">
             <Button
