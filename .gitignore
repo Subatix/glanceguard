@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Local/private planning notes. Do not publish personal account details,
+# local machine paths, or unreleased business operations.
+.planning/
+
 # Playwright
 /test-results/
 /playwright-report/

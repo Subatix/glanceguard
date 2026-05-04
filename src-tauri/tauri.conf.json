@@ -45,8 +45,6 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "hardenedRuntime": true,
-      "signingIdentity": "Developer ID Application: <redacted>",
-      "providerShortName": "<APPLE_TEAM_ID>",
       "entitlements": "entitlements.plist",
       "infoPlist": "Info.plist",
       "dmg": {
