@@ -185,3 +185,59 @@ fn decrypt(key: &[u8], payload: &EncryptedPayload) -> Result<Vec<u8>, String> {
         .map_err(|_| "Failed to decrypt owner profile".to_string())?;
     Ok(plaintext.to_vec())
 }
+
+#[cfg(test)]
+mod crypto_tests {
+    use super::{decrypt, encrypt, EncryptedPayload};
+    use crate::cv::types::{OwnerModelInfo, OwnerProfile};
+
+    #[test]
+    fn encrypt_decrypt_roundtrip() {
+        let key = [9u8; 32];
+        let plaintext = b"payload-bytes";
+        let enc = encrypt(&key, plaintext).unwrap();
+        let out = decrypt(&key, &enc).unwrap();
+        assert_eq!(out.as_slice(), plaintext);
+    }
+
+    #[test]
+    fn decrypt_rejects_tampered_ciphertext() {
+        let key = [3u8; 32];
+        let mut enc = encrypt(&key, b"secret").unwrap();
+        if let Some(b) = enc.ciphertext.first_mut() {
+            *b ^= 0xFF;
+        }
+        assert!(decrypt(&key, &enc).is_err());
+    }
+
+    #[test]
+    fn owner_profile_roundtrip_through_encrypt_json() {
+        let key = [21u8; 32];
+        let profile = OwnerProfile {
+            embedding: vec![0.1, 0.2, 0.3],
+            embedding_samples: vec![
+                vec![1.0, 0.0, 0.0],
+                vec![0.99, 0.01, 0.0],
+                vec![0.98, 0.02, 0.0],
+            ],
+            personal_threshold: Some(0.55),
+            model: OwnerModelInfo {
+                name: "w600k_mbf.onnx".into(),
+                input_width: 112,
+                input_height: 112,
+                normalization: "arcface".into(),
+            },
+            created_at_epoch: 42,
+        };
+        let plain = serde_json::to_vec(&profile).unwrap();
+        let enc = encrypt(&key, &plain).unwrap();
+        let json = serde_json::to_vec(&enc).unwrap();
+        let loaded: EncryptedPayload = serde_json::from_slice(&json).unwrap();
+        let round = decrypt(&key, &loaded).unwrap();
+        let back: OwnerProfile = serde_json::from_slice(&round).unwrap();
+        assert_eq!(back.embedding, profile.embedding);
+        assert_eq!(back.embedding_samples.len(), profile.embedding_samples.len());
+        assert_eq!(back.personal_threshold, profile.personal_threshold);
+        assert_eq!(back.model.name, profile.model.name);
+    }
+}

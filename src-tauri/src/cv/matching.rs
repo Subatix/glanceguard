@@ -97,3 +97,35 @@ pub fn owner_cosine_threshold(
 ) -> f32 {
     profile.personal_threshold.unwrap_or(global_fallback)
 }
+
+#[cfg(test)]
+mod matching_tests {
+    use super::cosine_similarity;
+
+    #[test]
+    fn cosine_identical_normalized_is_one() {
+        let v = vec![0.6_f32, 0.8_f32, 0.0_f32];
+        let c = cosine_similarity(&v, &v).unwrap();
+        assert!((c - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn cosine_orthogonal_is_zero() {
+        let a = vec![1.0_f32, 0.0_f32, 0.0_f32];
+        let b = vec![0.0_f32, 1.0_f32, 0.0_f32];
+        let c = cosine_similarity(&a, &b).unwrap();
+        assert!(c.abs() < 1e-6);
+    }
+
+    #[test]
+    fn cosine_length_mismatch_errors() {
+        let err = cosine_similarity(&[1.0, 2.0], &[1.0]).unwrap_err();
+        assert!(err.contains("length"));
+    }
+
+    #[test]
+    fn cosine_zero_norm_errors() {
+        let err = cosine_similarity(&[0.0_f32, 0.0], &[1.0, 0.0]).unwrap_err();
+        assert!(err.contains("norm"));
+    }
+}

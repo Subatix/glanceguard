@@ -182,4 +182,47 @@ mod tests {
         );
         assert_eq!(update.state, MonitorState::Monitoring);
     }
+
+    #[test]
+    fn flicker_reset_precludes_trigger_without_two_continuous_seconds_above() {
+        let mut state = AlertState::new();
+        let start = Instant::now();
+        let cooldown = Duration::from_secs(30);
+
+        for i in 0..40 {
+            let t = start + Duration::from_millis(i * 400);
+            let score = if i % 2 == 0 { Some(0.95) } else { Some(0.1) };
+            let update = state.update(score, 0.8, t, cooldown, true);
+            assert!(
+                !update.triggered,
+                "unexpected trigger at cycle {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn cooldown_boundary_exclusive_upper_bound_clears_on_exact_tick() {
+        let mut state = AlertState::new();
+        let start = Instant::now();
+        let cooldown = Duration::from_secs(10);
+
+        let _ = state.update(Some(0.9), 0.8, start, cooldown, true);
+        let fired = state.update(
+            Some(0.9),
+            0.8,
+            start + Duration::from_secs(2),
+            cooldown,
+            true,
+        );
+        assert!(fired.triggered);
+
+        let boundary = start + Duration::from_secs(2) + cooldown;
+        let update = state.update(Some(0.1), 0.8, boundary, cooldown, true);
+        assert_ne!(
+            update.state,
+            MonitorState::Cooldown,
+            "cooldown must clear when now == cooldown_until"
+        );
+    }
 }

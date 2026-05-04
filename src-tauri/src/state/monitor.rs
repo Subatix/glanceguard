@@ -472,3 +472,78 @@ fn bbox_ios(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox
         inter / min_area
     }
 }
+
+#[cfg(test)]
+mod duplicate_bbox_tests {
+    use crate::cv::types::{BoundingBox, FaceDetection, Point};
+
+    fn landmarks() -> [Point; 5] {
+        std::array::from_fn(|i| Point {
+            x: 10.0 + i as f32,
+            y: 10.0 + i as f32,
+        })
+    }
+
+    #[test]
+    fn is_duplicate_bbox_detects_heavy_overlap() {
+        let outer = BoundingBox {
+            x: 0.0,
+            y: 0.0,
+            width: 100.0,
+            height: 100.0,
+        };
+        let inner = BoundingBox {
+            x: 10.0,
+            y: 10.0,
+            width: 80.0,
+            height: 80.0,
+        };
+        assert!(super::is_duplicate_bbox(&inner, &outer));
+    }
+
+    #[test]
+    fn is_duplicate_bbox_false_for_far_apart() {
+        let a = BoundingBox {
+            x: 0.0,
+            y: 0.0,
+            width: 50.0,
+            height: 50.0,
+        };
+        let b = BoundingBox {
+            x: 400.0,
+            y: 400.0,
+            width: 50.0,
+            height: 50.0,
+        };
+        assert!(!super::is_duplicate_bbox(&a, &b));
+    }
+
+    #[test]
+    fn suppress_nested_detections_keeps_highest_score_first() {
+        let faces = vec![
+            FaceDetection {
+                bbox: BoundingBox {
+                    x: 0.0,
+                    y: 0.0,
+                    width: 100.0,
+                    height: 100.0,
+                },
+                score: 0.95,
+                landmarks: landmarks(),
+            },
+            FaceDetection {
+                bbox: BoundingBox {
+                    x: 5.0,
+                    y: 5.0,
+                    width: 90.0,
+                    height: 90.0,
+                },
+                score: 0.50,
+                landmarks: landmarks(),
+            },
+        ];
+        let kept = super::suppress_nested_detections(faces);
+        assert_eq!(kept.len(), 1);
+        assert!((kept[0].score - 0.95).abs() < 1e-6);
+    }
+}

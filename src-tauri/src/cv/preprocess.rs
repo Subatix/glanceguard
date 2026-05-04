@@ -283,6 +283,51 @@ fn build_clahe_map(y_vals: &[u8], clip_limit: f32) -> [u8; 256] {
     map
 }
 
+#[cfg(test)]
+mod preprocess_tests {
+    use super::{image_to_tensor_f32, ChannelOrder, TensorLayout};
+    use image::RgbImage;
+
+    #[test]
+    fn image_to_tensor_nchw_rgb_order_mean_std() {
+        let mut img = RgbImage::new(2, 2);
+        img.put_pixel(0, 0, image::Rgb([255, 0, 0]));
+        img.put_pixel(1, 0, image::Rgb([0, 255, 0]));
+        img.put_pixel(0, 1, image::Rgb([0, 0, 255]));
+        img.put_pixel(1, 1, image::Rgb([10, 20, 30]));
+
+        let mean = [0.0_f32, 0.0_f32, 0.0_f32];
+        let std = [1.0_f32, 1.0_f32, 1.0_f32];
+        let out =
+            image_to_tensor_f32(&img, mean, std, ChannelOrder::Rgb, TensorLayout::Nchw);
+        let w = 2usize;
+        let px = |x: usize, y: usize| y * w + x;
+
+        assert!((out[0 * 4 + px(0, 0)] - 255.0).abs() < 1e-4);
+        assert!((out[1 * 4 + px(1, 0)] - 255.0).abs() < 1e-4);
+        assert!((out[2 * 4 + px(0, 1)] - 255.0).abs() < 1e-4);
+        assert!((out[0 * 4 + px(1, 1)] - 10.0).abs() < 1e-4);
+        assert!((out[1 * 4 + px(1, 1)] - 20.0).abs() < 1e-4);
+        assert!((out[2 * 4 + px(1, 1)] - 30.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn image_to_tensor_bgr_swap_and_nhwc_layout() {
+        let mut img = RgbImage::new(1, 1);
+        img.put_pixel(0, 0, image::Rgb([10, 20, 30]));
+
+        let mean = [0.0_f32, 0.0_f32, 0.0_f32];
+        let std = [1.0_f32, 1.0_f32, 1.0_f32];
+        let out =
+            image_to_tensor_f32(&img, mean, std, ChannelOrder::Bgr, TensorLayout::Nhwc);
+
+        assert_eq!(out.len(), 3);
+        assert!((out[0] - 30.0).abs() < 1e-4);
+        assert!((out[1] - 20.0).abs() < 1e-4);
+        assert!((out[2] - 10.0).abs() < 1e-4);
+    }
+}
+
 fn apply_clahe_luminance_rgb(image: &mut RgbImage) {
     let grid: u32 = 8;
     let w = image.width();

@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use image::RgbImage;
 use ndarray::Array4;
@@ -33,6 +33,10 @@ pub struct FaceEmbedder {
 impl FaceEmbedder {
     pub fn new(app: &AppHandle, config: EmbedderConfig) -> Result<Self, String> {
         let model_path = resolve_model_path(app, &config.model_file)?;
+        Self::from_model_file(model_path.as_path(), config)
+    }
+
+    pub fn from_model_file(model_path: &Path, config: EmbedderConfig) -> Result<Self, String> {
         let session = Session::builder()
             .map_err(|e| e.to_string())?
             .with_optimization_level(GraphOptimizationLevel::Level3)

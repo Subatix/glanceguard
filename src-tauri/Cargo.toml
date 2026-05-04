@@ -5,6 +5,11 @@ description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
+[features]
+default = []
+# Enables `tests/detector_onnx.rs` + `tests/embedder_onnx.rs` (requires ONNX files under `src-tauri/models/`).
+onnx-integration-tests = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]

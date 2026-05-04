@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Playwright
+/test-results/
+/playwright-report/
+
 # Rust build output
 target/
 src-tauri/target/

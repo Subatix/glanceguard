@@ -1,5 +1,5 @@
 mod commands;
-mod cv;
+pub mod cv;
 mod models;
 mod settings;
 mod state;
@@ -8,7 +8,7 @@ mod storage;
 use tauri::Manager;
 use state::AppState;
 
-/// Find and configure the ONNX Runtime dynamic library path.
+/// Find and configure the ONNX Runtime dynamic library path (unit tests + integration tests).
 fn init_ort() {
     // If ORT_DYLIB_PATH is already set, ort will use it.
     if std::env::var("ORT_DYLIB_PATH").is_ok() {
@@ -27,6 +27,11 @@ fn init_ort() {
             return;
         }
     }
+}
+
+/// Call once before ONNX-based integration tests in `tests/*.rs` so `ort` can load its dylib.
+pub fn ensure_onnx_runtime_loaded() {
+    init_ort();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

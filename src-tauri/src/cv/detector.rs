@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use image::RgbImage;
 use ndarray::{ArrayView2, ArrayViewD, Ix2};
@@ -44,6 +44,11 @@ pub struct FaceDetector {
 impl FaceDetector {
     pub fn new(app: &AppHandle, config: DetectorConfig) -> Result<Self, String> {
         let model_path = resolve_model_path(app, &config.model_file)?;
+        Self::from_model_file(model_path.as_path(), config)
+    }
+
+    /// Load ONNX weights from an explicit path (CLI / integration tests). JSON config still supplies I/O layout.
+    pub fn from_model_file(model_path: &Path, config: DetectorConfig) -> Result<Self, String> {
         let session = Session::builder()
             .map_err(|e| e.to_string())?
             .with_optimization_level(GraphOptimizationLevel::Level3)
@@ -551,6 +556,92 @@ fn nms(mut detections: Vec<FaceDetection>, iou_threshold: f32) -> Vec<FaceDetect
     }
 
     kept
+}
+
+#[cfg(test)]
+mod detector_math_tests {
+    use super::{nms, BoundingBox, FaceDetection, Point};
+
+    fn face(x: f32, y: f32, w: f32, h: f32, score: f32) -> FaceDetection {
+        let landmarks = std::array::from_fn(|_| Point { x: 0.0, y: 0.0 });
+        FaceDetection {
+            bbox: BoundingBox {
+                x,
+                y,
+                width: w,
+                height: h,
+            },
+            score,
+            landmarks,
+        }
+    }
+
+    #[test]
+    fn iou_full_overlap_is_one() {
+        let a = BoundingBox {
+            x: 1.0,
+            y: 1.0,
+            width: 4.0,
+            height: 4.0,
+        };
+        let b = BoundingBox {
+            x: 1.0,
+            y: 1.0,
+            width: 4.0,
+            height: 4.0,
+        };
+        assert!((super::iou(&a, &b) - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn iou_disjoint_is_zero() {
+        let a = BoundingBox {
+            x: 0.0,
+            y: 0.0,
+            width: 1.0,
+            height: 1.0,
+        };
+        let b = BoundingBox {
+            x: 5.0,
+            y: 5.0,
+            width: 1.0,
+            height: 1.0,
+        };
+        assert!(super::iou(&a, &b) < 1e-5);
+    }
+
+    #[test]
+    fn iou_partial_overlap() {
+        let a = BoundingBox {
+            x: 0.0,
+            y: 0.0,
+            width: 4.0,
+            height: 4.0,
+        };
+        let b = BoundingBox {
+            x: 2.0,
+            y: 2.0,
+            width: 4.0,
+            height: 4.0,
+        };
+        let inter = 2.0 * 2.0;
+        let union = 16.0 + 16.0 - inter;
+        let expected = inter / union;
+        assert!((super::iou(&a, &b) - expected).abs() < 1e-4);
+    }
+
+    #[test]
+    fn nms_keeps_highest_when_boxes_overlap() {
+        let dets = vec![
+            face(10.0, 10.0, 30.0, 40.0, 0.99),
+            face(12.0, 12.0, 28.0, 38.0, 0.5),
+            face(200.0, 200.0, 20.0, 30.0, 0.95),
+        ];
+        let kept = nms(dets, 0.45);
+        assert_eq!(kept.len(), 2);
+        assert!(kept.iter().any(|d| (d.score - 0.99).abs() < 1e-6));
+        assert!(kept.iter().any(|d| (d.score - 0.95).abs() < 1e-6));
+    }
 }
 
 fn iou(a: &BoundingBox, b: &BoundingBox) -> f32 {
