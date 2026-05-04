@@ -1,0 +1,109 @@
+name: Release (macOS)
+
+# Signed + notarized universal DMG and updater payloads. Requires repository secrets listed below.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+  workflow_dispatch:
+
+concurrency:
+  group: macos-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  universal-macos-dmg:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Fetch UI + Rust deps
+        run: npm ci
+
+      - name: ONNX weights (bundled CI verify)
+        run: bash scripts/download-buffalo-s-models.sh
+
+      - name: Import Developer ID certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [ -z "${APPLE_CERTIFICATE:-}" ]; then echo "Missing secret APPLE_CERTIFICATE (base64 .p12)."; exit 1; fi
+          if [ -z "${KEYCHAIN_PASSWORD:-}" ]; then echo "Missing secret KEYCHAIN_PASSWORD"; exit 1; fi
+
+          printf '%s' "$APPLE_CERTIFICATE" | openssl base64 -d -out certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 86400 build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          security find-identity -v -p codesigning build.keychain
+
+          CERT_LINE="$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1)"
+          if [ -z "$CERT_LINE" ]; then
+            echo "No Developer ID Application identity in imported keychain. Export the correct .p12 from login keychain." >&2
+            exit 1
+          fi
+          CERT_ID="$(echo "$CERT_LINE" | awk -F'"' '{print $2}')"
+          echo "Using signing identity: $CERT_ID"
+          echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
+
+      - name: Build, notarize (notarytool), updater artifacts
+        env:
+          # Apple ID auth: APPLE_PASSWORD must be an app-specific password (not your Apple ID login password).
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Alternatively set App Store Connect API key env vars in this step (see Tauri macOS signing docs).
+
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm run tauri build -- --target universal-apple-darwin
+
+      - name: List bundle artifacts
+        run: ls -lah src-tauri/target/universal-apple-darwin/release/bundle/dmg || true && ls -lah src-tauri/target/universal-apple-darwin/release/bundle/macos || true
+
+      - name: Upload workflow artifacts (non-tag runs)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: glanceguard-macos-universal-${{ github.run_id }}
+          path: |
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+
+      - name: Upload release assets (tag push only)
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          draft: false
+          generate_release_notes: true
+          files: |
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig

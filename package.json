@@ -10,6 +10,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:build:mac-universal": "rustup target add aarch64-apple-darwin x86_64-apple-darwin && npm run tauri build -- --target universal-apple-darwin",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
