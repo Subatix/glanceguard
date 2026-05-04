@@ -3,7 +3,7 @@ import {
   isValidLicenseKeyFormat,
   persistLicenseGatePassed,
 } from "../../state/firstRunPersistence";
-import { useAppStore } from "../../state/appStore";
+import { useLicenseStore } from "../../state/licenseStore";
 import { PrivacyOnboardingFooter } from "../components/PrivacyOnboardingFooter";
 
 /**
@@ -11,7 +11,7 @@ import { PrivacyOnboardingFooter } from "../components/PrivacyOnboardingFooter";
  * Production builds still require a well-formed key — there is no silent bypass. Development builds may use the explicit skip control (import.meta.env.DEV only).
  */
 export const LicenseGateScreen = () => {
-  const setLicenseGatePassed = useAppStore((s) => s.setLicenseGatePassed);
+  const setLicenseGatePassed = useLicenseStore((s) => s.setLicenseGatePassed);
   const [licenseKey, setLicenseKey] = useState("");
   const [error, setError] = useState<string | undefined>();
 

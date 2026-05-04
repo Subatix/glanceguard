@@ -2,6 +2,10 @@ import type { CameraSelection } from "../cv/types";
 
 export type Sensitivity = "low" | "medium" | "high";
 
+export type AppTheme = "system" | "light" | "dark";
+
+export type NotificationStyle = "native" | "compact";
+
 export type Settings = {
   sensitivity: Sensitivity;
   cooldownSec: 15 | 30 | 60;
@@ -9,6 +13,9 @@ export type Settings = {
   /** Optional CLAHE on aligned face crops (off by default). */
   claheFacePreproc?: boolean;
   camera?: CameraSelection;
+  theme?: AppTheme;
+  startAtLogin?: boolean;
+  notificationStyle?: NotificationStyle;
 };
 
 export type SettingsUpdate = {
@@ -17,4 +24,7 @@ export type SettingsUpdate = {
   debugOverlay?: boolean;
   claheFacePreproc?: boolean;
   camera?: CameraSelection;
+  theme?: AppTheme;
+  startAtLogin?: boolean;
+  notificationStyle?: NotificationStyle;
 };

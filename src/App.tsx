@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 import {
@@ -9,8 +9,14 @@ import {
   stopMonitoring,
 } from "./cv/ipc";
 import type { AlertEvent, FrameEvent, ErrorEvent, MonitorStoppedEvent } from "./cv/types";
+import { toggleMonitoringPause } from "./monitoring/toggleMonitoringPause";
 import { loadFirstRunSnapshot } from "./state/firstRunPersistence";
 import { useAppStore } from "./state/appStore";
+import { useLicenseStore } from "./state/licenseStore";
+import { useMonitorStore } from "./state/monitorStore";
+import { useOwnerStore } from "./state/ownerStore";
+import { useSettingsStore } from "./state/settingsStore";
+import { syncDomTheme } from "./theme/syncDomTheme";
 import { notifyAlert } from "./ui/notifications";
 import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
@@ -22,21 +28,26 @@ import { OnboardingScreen } from "./ui/screens/OnboardingScreen";
 const App = () => {
   const activeScreen = useAppStore((state) => state.activeScreen);
   const setActiveScreen = useAppStore((state) => state.setActiveScreen);
-  const setSettings = useAppStore((state) => state.setSettings);
-  const setCameras = useAppStore((state) => state.setCameras);
-  const setOwnerEnrolled = useAppStore((state) => state.setOwnerEnrolled);
-  const setMonitorStatus = useAppStore((state) => state.setMonitorStatus);
-  const setLastAlert = useAppStore((state) => state.setLastAlert);
-  const setDebugFrame = useAppStore((state) => state.setDebugFrame);
+  const setSettingsState = useSettingsStore((state) => state.setSettings);
+  const setCameras = useSettingsStore((state) => state.setCameras);
+  const settings = useSettingsStore((state) => state.settings);
+  const setOwnerEnrolled = useOwnerStore((state) => state.setOwnerEnrolled);
+  const setMonitorStatus = useMonitorStore((state) => state.setMonitorStatus);
+  const setLastAlert = useMonitorStore((state) => state.setLastAlert);
+  const setDebugFrame = useMonitorStore((state) => state.setDebugFrame);
   const setError = useAppStore((state) => state.setError);
-  const monitorStatus = useAppStore((state) => state.monitor.status);
+  const monitorStatus = useMonitorStore((state) => state.monitor.status);
 
   const firstRunHydrated = useAppStore((state) => state.firstRunHydrated);
-  const licenseGatePassed = useAppStore((state) => state.licenseGatePassed);
+  const licenseGatePassed = useLicenseStore((state) => state.licenseGatePassed);
   const onboardingCompleted = useAppStore((state) => state.onboarding.completed);
   const mainUnlocked = licenseGatePassed && onboardingCompleted;
 
   const [modelsOk, setModelsOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    syncDomTheme(settings.theme ?? "system");
+  }, [settings.theme]);
 
   useEffect(() => {
     modelsReady()
@@ -55,12 +66,14 @@ const App = () => {
     loadFirstRunSnapshot()
       .then((snapshot) => {
         if (!cancelled) {
+          useLicenseStore.getState().setLicenseGatePassed(snapshot.licenseGatePassed);
           useAppStore.getState().hydrateFirstRun(snapshot);
         }
       })
       .catch((err) => {
         if (!cancelled) {
           setError(String(err));
+          useLicenseStore.getState().setLicenseGatePassed(false);
           useAppStore.getState().hydrateFirstRun({
             licenseGatePassed: false,
             onboardingCompleted: false,
@@ -79,11 +92,11 @@ const App = () => {
     }
 
     getSettings()
-      .then((settings) => setSettings(settings))
+      .then((s) => setSettingsState(s))
       .catch((err) => setError(String(err)));
 
     listCameras()
-      .then((cameras) => setCameras(cameras))
+      .then((cams) => setCameras(cams))
       .catch((err) => setError(String(err)));
 
     getOwnerStatus()
@@ -102,7 +115,10 @@ const App = () => {
 
     const alertListener = listen<AlertEvent>("cv:alert", (event) => {
       setLastAlert(event.payload);
-      notifyAlert("Someone may be looking at your screen.").catch((err) => setError(String(err)));
+      const style = useSettingsStore.getState().settings.notificationStyle ?? "native";
+      notifyAlert("Someone may be looking at your screen.", style).catch((err) =>
+        setError(String(err)),
+      );
     });
 
     const errorListener = listen<ErrorEvent>("cv:error", (event) => {
@@ -115,23 +131,58 @@ const App = () => {
       stopMonitoring().catch(() => undefined);
     });
 
+    const trayStateListener = listen<{ idle: boolean }>(
+      "screenpeek-monitor-state",
+      (event) => {
+        useMonitorStore
+          .getState()
+          .setMonitorStatus(event.payload.idle ? "idle" : "monitoring", null);
+      },
+    );
+
+    const trayErrListener = listen<{ message: string }>("screenpeek-tray-error", (event) => {
+      setError(event.payload.message);
+    });
+
+    const navListener = listen<{ screen: string }>("screenpeek-navigate", (event) => {
+      const s = event.payload.screen;
+      if (s === "settings" || s === "monitoring" || s === "owner") {
+        setActiveScreen(s);
+      }
+    });
+
     return () => {
       frameListener.then((unlisten) => unlisten()).catch(() => undefined);
       alertListener.then((unlisten) => unlisten()).catch(() => undefined);
       errorListener.then((unlisten) => unlisten()).catch(() => undefined);
       stopListener.then((unlisten) => unlisten()).catch(() => undefined);
+      trayStateListener.then((unlisten) => unlisten()).catch(() => undefined);
+      trayErrListener.then((unlisten) => unlisten()).catch(() => undefined);
+      navListener.then((unlisten) => unlisten()).catch(() => undefined);
     };
   }, [
     mainUnlocked,
     modelsOk,
+    setActiveScreen,
     setCameras,
     setDebugFrame,
     setError,
     setLastAlert,
     setMonitorStatus,
     setOwnerEnrolled,
-    setSettings,
+    setSettingsState,
   ]);
+
+  const headerStatusClick = () => {
+    toggleMonitoringPause(setError).catch(() => undefined);
+  };
+
+  const headerStatusKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      headerStatusClick();
+    }
+  };
 
   if (modelsOk === null) {
     return (
@@ -187,45 +238,74 @@ const App = () => {
     );
   }
 
+  const monitoringRunning = monitorStatus !== "idle";
+
   return (
     <div className="app">
       <header className="app__header">
         <div className="brand">
           <div className="brand__icon">
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" aria-hidden>
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </div>
           <div className="brand__title">Screen Peek Alert</div>
         </div>
-        <nav className="nav">
+        <nav className="nav" role="tablist" aria-label="Primary">
           <button
+            type="button"
+            role="tab"
+            id="tab-monitoring"
+            aria-selected={activeScreen === "monitoring"}
+            aria-controls="panel-main"
             className={`nav__item ${activeScreen === "monitoring" ? "is-active" : ""}`}
             onClick={() => setActiveScreen("monitoring")}
           >
             Monitoring
           </button>
           <button
+            type="button"
+            role="tab"
+            id="tab-owner"
+            aria-selected={activeScreen === "owner"}
+            aria-controls="panel-main"
             className={`nav__item ${activeScreen === "owner" ? "is-active" : ""}`}
             onClick={() => setActiveScreen("owner")}
           >
             Owner
           </button>
           <button
+            type="button"
+            role="tab"
+            id="tab-settings"
+            aria-selected={activeScreen === "settings"}
+            aria-controls="panel-main"
             className={`nav__item ${activeScreen === "settings" ? "is-active" : ""}`}
             onClick={() => setActiveScreen("settings")}
           >
             Settings
           </button>
         </nav>
-        <div className="header-status" data-state={monitorStatus}>
-          <span className="header-status__dot" />
-          <span className="header-status__label">{monitorStatus}</span>
+        <div className="header-status-slot">
+          <button
+            type="button"
+            className="header-status"
+            data-state={monitorStatus}
+            aria-label={monitoringRunning ? "Pause monitoring" : "Resume monitoring"}
+            aria-pressed={monitoringRunning}
+            onClick={() => headerStatusClick()}
+            onKeyDown={headerStatusKeyDown}
+          >
+            <span className="header-status__dot" aria-hidden />
+            <span className="header-status__label" aria-live="polite">
+              {monitorStatus}
+            </span>
+          </button>
         </div>
       </header>
 
-      <main className="app__main">
+      <main id="panel-main" role="tabpanel" className="app__main">
         {activeScreen === "monitoring" ? <MonitoringScreen /> : null}
         {activeScreen === "owner" ? <OwnerSetupScreen /> : null}
         {activeScreen === "settings" ? <SettingsScreen /> : null}

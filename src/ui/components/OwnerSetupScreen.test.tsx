@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { OwnerSetupScreen } from "../screens/OwnerSetupScreen";
 import { useAppStore } from "../../state/appStore";
+import { useOwnerStore } from "../../state/ownerStore";
+import { useSettingsStore } from "../../state/settingsStore";
 import { defaultSettings } from "../../settings/defaults";
 
 vi.mock("../../cv/ipc", () => ({
@@ -16,17 +18,13 @@ describe("OwnerSetupScreen", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     useAppStore.setState({
-      settings: defaultSettings,
-      cameras: [],
       activeScreen: "monitoring",
-      ownerEnrolled: false,
-      monitor: { status: "idle" },
-      debugFrame: undefined,
       error: undefined,
       firstRunHydrated: false,
-      licenseGatePassed: false,
       onboarding: { step: "welcome", completed: false },
     });
+    useOwnerStore.setState({ ownerEnrolled: false });
+    useSettingsStore.setState({ settings: defaultSettings, cameras: [] });
   });
 
   it("renders enrollment actions when IPC is mocked", async () => {

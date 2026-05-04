@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 /**
  * Smoke: Vite shell renders before or without a working Tauri IPC bridge (invoke fails in plain Chromium).
- * Full first-run (license gate → onboarding wizard → enroll → monitor) needs a packaged app + WebDriver; defer to Phase 7 with tray/E2E harness.
+ * Full first-run (license gate → onboarding wizard → enroll → monitor) needs a packaged app + WebDriver; Phase 7 landed tray/Rust IPC but Playwright against plain Vite still cannot drive invoke — keep deferred until WebDriver harness exists.
  */
 test("startup shell shows model gate or download screen", async ({ page }) => {
   await page.goto("/");
@@ -16,6 +16,6 @@ test("startup shell shows model gate or download screen", async ({ page }) => {
 test.describe("Full-stack onboarding", () => {
   test.skip(
     true,
-    "Wire Tauri WebDriver + fixtures when Phase 7 tray/E2E harness lands",
+    "Wire Tauri WebDriver + fixtures (Phase 7 tray is in-app; Playwright smoke stays Vite-only)",
   );
 });

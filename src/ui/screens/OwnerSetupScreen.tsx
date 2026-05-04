@@ -6,10 +6,11 @@ import {
   getOwnerStatus,
 } from "../../cv/ipc";
 import { useAppStore } from "../../state/appStore";
+import { useOwnerStore } from "../../state/ownerStore";
 
 export const OwnerSetupScreen = () => {
-  const ownerEnrolled = useAppStore((state) => state.ownerEnrolled);
-  const setOwnerEnrolled = useAppStore((state) => state.setOwnerEnrolled);
+  const ownerEnrolled = useOwnerStore((state) => state.ownerEnrolled);
+  const setOwnerEnrolled = useOwnerStore((state) => state.setOwnerEnrolled);
   const error = useAppStore((state) => state.error);
   const setError = useAppStore((state) => state.setError);
   const [loading, setLoading] = useState(false);

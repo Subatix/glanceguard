@@ -1,32 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useAppStore } from "./appStore";
-import { defaultSettings } from "../settings/defaults";
-import type { AlertEvent } from "../cv/types";
+import { useLicenseStore } from "./licenseStore";
 
 describe("useAppStore", () => {
   beforeEach(() => {
     useAppStore.setState({
-      settings: defaultSettings,
-      cameras: [],
       activeScreen: "monitoring",
-      ownerEnrolled: false,
-      monitor: { status: "idle" },
-      debugFrame: undefined,
       error: undefined,
       firstRunHydrated: false,
-      licenseGatePassed: false,
       onboarding: { step: "welcome", completed: false },
     });
-  });
-
-  it("setSettings replaces settings", () => {
-    useAppStore.getState().setSettings({
-      ...defaultSettings,
-      cooldownSec: 60,
-      debugOverlay: true,
-    });
-    expect(useAppStore.getState().settings.cooldownSec).toBe(60);
-    expect(useAppStore.getState().settings.debugOverlay).toBe(true);
+    useLicenseStore.setState({ licenseGatePassed: false });
   });
 
   it("setActiveScreen switches screens", () => {
@@ -34,44 +18,14 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().activeScreen).toBe("settings");
   });
 
-  it("setOwnerEnrolled toggles enrollment flag", () => {
-    useAppStore.getState().setOwnerEnrolled(true);
-    expect(useAppStore.getState().ownerEnrolled).toBe(true);
-  });
-
-  it("setMonitorStatus preserves monitor slice and updates status", () => {
-    useAppStore.getState().setMonitorStatus("monitoring", 0.42);
-    expect(useAppStore.getState().monitor.status).toBe("monitoring");
-    expect(useAppStore.getState().monitor.observerScore).toBe(0.42);
-  });
-
-  it("setLastAlert forces alert status and stores payload", () => {
-    const alert: AlertEvent = {
-      score: 0.91,
-      reason: "test",
-      cooldownSec: 30,
-    };
-    useAppStore.getState().setLastAlert(alert);
-    expect(useAppStore.getState().monitor.status).toBe("alert");
-    expect(useAppStore.getState().monitor.lastAlert).toEqual(alert);
-  });
-
-  it("setDebugFrame and setError update transient UI fields", () => {
-    useAppStore.getState().setDebugFrame({
-      frameWidth: 640,
-      frameHeight: 480,
-      faces: [],
-      observerScore: null,
-      state: "monitoring",
-    });
+  it("setError clears and sets messages", () => {
     useAppStore.getState().setError("boom");
-    expect(useAppStore.getState().debugFrame?.frameWidth).toBe(640);
     expect(useAppStore.getState().error).toBe("boom");
     useAppStore.getState().setError(undefined);
     expect(useAppStore.getState().error).toBeUndefined();
   });
 
-  it("hydrateFirstRun restores license and onboarding snapshot", () => {
+  it("hydrateFirstRun restores onboarding snapshot", () => {
     useAppStore.getState().hydrateFirstRun({
       licenseGatePassed: true,
       onboardingCompleted: false,
@@ -79,20 +33,7 @@ describe("useAppStore", () => {
     });
     const s = useAppStore.getState();
     expect(s.firstRunHydrated).toBe(true);
-    expect(s.licenseGatePassed).toBe(true);
     expect(s.onboarding.completed).toBe(false);
     expect(s.onboarding.step).toBe("keychain-explainer");
-  });
-
-  it("setCameras stores camera list", () => {
-    const cameras = [
-      {
-        id: { kind: "Index" as const, value: 0 },
-        name: "FaceTime",
-        description: "",
-      },
-    ];
-    useAppStore.getState().setCameras(cameras);
-    expect(useAppStore.getState().cameras).toHaveLength(1);
   });
 });

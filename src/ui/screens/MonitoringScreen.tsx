@@ -1,4 +1,7 @@
 import { useAppStore } from "../../state/appStore";
+import { useMonitorStore } from "../../state/monitorStore";
+import { useOwnerStore } from "../../state/ownerStore";
+import { useSettingsStore } from "../../state/settingsStore";
 import { CameraSelect } from "../components/CameraSelect";
 import { DebugOverlayCanvas } from "../components/DebugOverlayCanvas";
 import { EmptyState, emptyStatePresets } from "../components/EmptyState";
@@ -13,17 +16,17 @@ import {
 } from "../../cv/ipc";
 
 export const MonitoringScreen = () => {
-  const cameras = useAppStore((state) => state.cameras);
-  const settings = useAppStore((state) => state.settings);
-  const monitor = useAppStore((state) => state.monitor);
+  const cameras = useSettingsStore((state) => state.cameras);
+  const settings = useSettingsStore((state) => state.settings);
+  const monitor = useMonitorStore((state) => state.monitor);
   const error = useAppStore((state) => state.error);
-  const ownerEnrolled = useAppStore((state) => state.ownerEnrolled);
-  const debugFrame = useAppStore((state) => state.debugFrame);
-  const setSettingsState = useAppStore((state) => state.setSettings);
+  const ownerEnrolled = useOwnerStore((state) => state.ownerEnrolled);
+  const debugFrame = useMonitorStore((state) => state.debugFrame);
+  const setSettingsState = useSettingsStore((state) => state.setSettings);
   const setActiveScreen = useAppStore((state) => state.setActiveScreen);
-  const setCameras = useAppStore((state) => state.setCameras);
+  const setCameras = useSettingsStore((state) => state.setCameras);
   const setError = useAppStore((state) => state.setError);
-  const setMonitorStatus = useAppStore((state) => state.setMonitorStatus);
+  const setMonitorStatus = useMonitorStore((state) => state.setMonitorStatus);
 
   const isMonitoring = monitor.status !== "idle";
 
@@ -63,6 +66,7 @@ export const MonitoringScreen = () => {
           ) : null}
           <div className="actions">
             <button
+              type="button"
               className="button button--primary"
               disabled={!settings.camera || !ownerEnrolled}
               onClick={() => {
@@ -74,6 +78,7 @@ export const MonitoringScreen = () => {
               Start monitoring
             </button>
             <button
+              type="button"
               className="button button--ghost"
               disabled={!isMonitoring}
               onClick={() => {
@@ -103,6 +108,7 @@ export const MonitoringScreen = () => {
             and scores in real time.
           </div>
           <button
+            type="button"
             className="button button--primary button--small"
             onClick={() => {
               setSettingsCommand({ debugOverlay: true })
@@ -126,7 +132,9 @@ export const MonitoringScreen = () => {
           }`}
         >
           {settings.debugOverlay ? <DebugOverlayCanvas frame={debugFrame} /> : null}
-          {!settings.debugOverlay ? <div className="debug-panel__empty">Enable debug overlay in settings.</div> : null}
+          {!settings.debugOverlay ? (
+            <div className="debug-panel__empty">Enable debug overlay in settings.</div>
+          ) : null}
         </div>
       </div>
 

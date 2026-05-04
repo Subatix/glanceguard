@@ -1,4 +1,6 @@
 import { useAppStore, type OnboardingWizardStep } from "../../state/appStore";
+import { useOwnerStore } from "../../state/ownerStore";
+import { useSettingsStore } from "../../state/settingsStore";
 import {
   persistOnboardingCompleted,
   persistOnboardingStep,
@@ -13,9 +15,9 @@ export const OnboardingScreen = () => {
   const setOnboardingStep = useAppStore((s) => s.setOnboardingStep);
   const setOnboardingCompleted = useAppStore((s) => s.setOnboardingCompleted);
   const setError = useAppStore((s) => s.setError);
-  const setCameras = useAppStore((s) => s.setCameras);
-  const setSettings = useAppStore((s) => s.setSettings);
-  const setOwnerEnrolled = useAppStore((s) => s.setOwnerEnrolled);
+  const setCameras = useSettingsStore((s) => s.setCameras);
+  const setSettings = useSettingsStore((s) => s.setSettings);
+  const setOwnerEnrolled = useOwnerStore((s) => s.setOwnerEnrolled);
 
   const advance = async (next: OnboardingWizardStep) => {
     setOnboardingStep(next);

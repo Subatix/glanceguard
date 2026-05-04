@@ -1,4 +1,4 @@
-import type { MonitorStatus } from "../../state/appStore";
+import type { MonitorStatus } from "../../state/monitorStore";
 
 type StatusCardProps = {
   variant?: "default" | "skeleton";

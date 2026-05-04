@@ -952,3 +952,176 @@ input[type="file"]::file-selector-button:hover {
     background-size: 200% 100%;
   }
 }
+
+/* ── Phase 7: segmented controls ── */
+
+.segmented {
+  margin-bottom: 18px;
+}
+
+.segmented__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+
+.segmented__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--border);
+}
+
+.segmented__tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 120ms, background 120ms;
+}
+
+.segmented__tab:hover {
+  color: var(--text-2);
+}
+
+.segmented__tab.is-selected {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.segmented__hint {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ── Focus visibility ── */
+
+.button:focus-visible,
+.nav__item:focus-visible,
+.field__input:focus-visible,
+.segmented__tab:focus-visible,
+.header-status:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+/* ── Header status button ── */
+
+.header-status-slot {
+  margin-left: auto;
+}
+
+.header-status {
+  margin-left: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: capitalize;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-s);
+}
+
+.header-status:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Glass panels ── */
+
+.panel,
+.card {
+  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* ── Settings camera preview ── */
+
+.camera-preview--settings {
+  max-height: 200px;
+  margin-top: 8px;
+}
+
+.privacy-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.privacy-panel__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.privacy-panel__list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.settings-shortcut-hint {
+  margin-top: 16px;
+}
+
+/* ── Light theme ── */
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f6;
+  --bg-raised: rgba(255, 255, 255, 0.82);
+  --bg-hover: #ebebef;
+  --bg-active: #e2e2e8;
+  --bg-inset: #eaecef;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+
+  --text: #141418;
+  --text-2: #5c5c66;
+  --text-3: #8b8b96;
+
+  --blue: #3d5bfd;
+  --green: #0d9f6e;
+  --red: #e02424;
+  --amber: #c98200;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: #f4f4f6;
+    --bg-raised: rgba(255, 255, 255, 0.82);
+    --bg-hover: #ebebef;
+    --bg-active: #e2e2e8;
+    --bg-inset: #eaecef;
+
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.14);
+
+    --text: #141418;
+    --text-2: #5c5c66;
+    --text-3: #8b8b96;
+
+    --blue: #3d5bfd;
+    --green: #0d9f6e;
+    --red: #e02424;
+    --amber: #c98200;
+  }
+}
