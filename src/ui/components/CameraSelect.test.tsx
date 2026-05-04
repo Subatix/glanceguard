@@ -16,6 +16,14 @@ const cameras = [
 ];
 
 describe("CameraSelect", () => {
+  it("shows empty state when no cameras and retry is available", () => {
+    const onRetry = vi.fn();
+    render(<CameraSelect cameras={[]} selected={undefined} onChange={vi.fn()} onRetryList={onRetry} />);
+    expect(screen.getByText(/No camera found/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Refresh camera list/i }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
   it("lists cameras and emits selection on change", () => {
     const onChange = vi.fn();
     render(

@@ -135,6 +135,10 @@ export const OwnerSetupScreen = () => {
       <div className="screen__header">
         <h2>Owner setup</h2>
         <p>Enroll yourself so the app can distinguish you from observers.</p>
+        <p className="owner-setup__privacy-note muted">
+          Your face stays on this Mac. The profile is encrypted; keys live in macOS Keychain. No enrollment data is sent
+          over the network.
+        </p>
       </div>
 
       <div className="panel">

@@ -13,6 +13,9 @@ describe("useAppStore", () => {
       monitor: { status: "idle" },
       debugFrame: undefined,
       error: undefined,
+      firstRunHydrated: false,
+      licenseGatePassed: false,
+      onboarding: { step: "welcome", completed: false },
     });
   });
 
@@ -66,6 +69,19 @@ describe("useAppStore", () => {
     expect(useAppStore.getState().error).toBe("boom");
     useAppStore.getState().setError(undefined);
     expect(useAppStore.getState().error).toBeUndefined();
+  });
+
+  it("hydrateFirstRun restores license and onboarding snapshot", () => {
+    useAppStore.getState().hydrateFirstRun({
+      licenseGatePassed: true,
+      onboardingCompleted: false,
+      onboardingStep: "keychain-explainer",
+    });
+    const s = useAppStore.getState();
+    expect(s.firstRunHydrated).toBe(true);
+    expect(s.licenseGatePassed).toBe(true);
+    expect(s.onboarding.completed).toBe(false);
+    expect(s.onboarding.step).toBe("keychain-explainer");
   });
 
   it("setCameras stores camera list", () => {

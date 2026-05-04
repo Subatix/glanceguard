@@ -13,4 +13,9 @@ describe("StatusCard", () => {
     render(<StatusCard status="idle" error="Camera blocked" />);
     expect(screen.getByText("Camera blocked")).toBeInTheDocument();
   });
+
+  it("renders skeleton variant", () => {
+    render(<StatusCard variant="skeleton" />);
+    expect(screen.getByLabelText(/loading status/i)).toBeInTheDocument();
+  });
 });

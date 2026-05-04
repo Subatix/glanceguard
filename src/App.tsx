@@ -9,12 +9,15 @@ import {
   stopMonitoring,
 } from "./cv/ipc";
 import type { AlertEvent, FrameEvent, ErrorEvent, MonitorStoppedEvent } from "./cv/types";
+import { loadFirstRunSnapshot } from "./state/firstRunPersistence";
 import { useAppStore } from "./state/appStore";
 import { notifyAlert } from "./ui/notifications";
 import { ModelDownloadScreen } from "./ui/screens/ModelDownloadScreen";
 import { MonitoringScreen } from "./ui/screens/MonitoringScreen";
 import { OwnerSetupScreen } from "./ui/screens/OwnerSetupScreen";
 import { SettingsScreen } from "./ui/screens/SettingsScreen";
+import { LicenseGateScreen } from "./ui/screens/LicenseGateScreen";
+import { OnboardingScreen } from "./ui/screens/OnboardingScreen";
 
 const App = () => {
   const activeScreen = useAppStore((state) => state.activeScreen);
@@ -27,6 +30,12 @@ const App = () => {
   const setDebugFrame = useAppStore((state) => state.setDebugFrame);
   const setError = useAppStore((state) => state.setError);
   const monitorStatus = useAppStore((state) => state.monitor.status);
+
+  const firstRunHydrated = useAppStore((state) => state.firstRunHydrated);
+  const licenseGatePassed = useAppStore((state) => state.licenseGatePassed);
+  const onboardingCompleted = useAppStore((state) => state.onboarding.completed);
+  const mainUnlocked = licenseGatePassed && onboardingCompleted;
+
   const [modelsOk, setModelsOk] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -40,6 +49,32 @@ const App = () => {
 
   useEffect(() => {
     if (modelsOk !== true) {
+      return;
+    }
+    let cancelled = false;
+    loadFirstRunSnapshot()
+      .then((snapshot) => {
+        if (!cancelled) {
+          useAppStore.getState().hydrateFirstRun(snapshot);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(String(err));
+          useAppStore.getState().hydrateFirstRun({
+            licenseGatePassed: false,
+            onboardingCompleted: false,
+            onboardingStep: null,
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modelsOk, setError]);
+
+  useEffect(() => {
+    if (!mainUnlocked || modelsOk !== true) {
       return;
     }
 
@@ -67,9 +102,7 @@ const App = () => {
 
     const alertListener = listen<AlertEvent>("cv:alert", (event) => {
       setLastAlert(event.payload);
-      notifyAlert("Someone may be looking at your screen.").catch((err) =>
-        setError(String(err))
-      );
+      notifyAlert("Someone may be looking at your screen.").catch((err) => setError(String(err)));
     });
 
     const errorListener = listen<ErrorEvent>("cv:error", (event) => {
@@ -89,6 +122,7 @@ const App = () => {
       stopListener.then((unlisten) => unlisten()).catch(() => undefined);
     };
   }, [
+    mainUnlocked,
     modelsOk,
     setCameras,
     setDebugFrame,
@@ -116,6 +150,38 @@ const App = () => {
       <div className="app">
         <main className="app__main">
           <ModelDownloadScreen onReady={() => setModelsOk(true)} />
+        </main>
+      </div>
+    );
+  }
+
+  if (!firstRunHydrated) {
+    return (
+      <div className="app">
+        <main className="app__main">
+          <div className="screen">
+            <p className="muted">Loading preferences…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!licenseGatePassed) {
+    return (
+      <div className="app">
+        <main className="app__main">
+          <LicenseGateScreen />
+        </main>
+      </div>
+    );
+  }
+
+  if (!onboardingCompleted) {
+    return (
+      <div className="app">
+        <main className="app__main">
+          <OnboardingScreen />
         </main>
       </div>
     );

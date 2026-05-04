@@ -1,9 +1,11 @@
 import { useAppStore } from "../../state/appStore";
 import { CameraSelect } from "../components/CameraSelect";
 import { DebugOverlayCanvas } from "../components/DebugOverlayCanvas";
+import { EmptyState, emptyStatePresets } from "../components/EmptyState";
 import { Overlay } from "../components/Overlay";
 import { StatusCard } from "../components/StatusCard";
 import {
+  listCameras,
   setCamera,
   setSettings as setSettingsCommand,
   startMonitoring,
@@ -18,6 +20,8 @@ export const MonitoringScreen = () => {
   const ownerEnrolled = useAppStore((state) => state.ownerEnrolled);
   const debugFrame = useAppStore((state) => state.debugFrame);
   const setSettingsState = useAppStore((state) => state.setSettings);
+  const setActiveScreen = useAppStore((state) => state.setActiveScreen);
+  const setCameras = useAppStore((state) => state.setCameras);
   const setError = useAppStore((state) => state.setError);
   const setMonitorStatus = useAppStore((state) => state.setMonitorStatus);
 
@@ -40,9 +44,22 @@ export const MonitoringScreen = () => {
                 .then((updated) => setSettingsState(updated))
                 .catch((err) => setError(String(err)));
             }}
+            onRetryList={() => {
+              listCameras()
+                .then((c) => setCameras(c))
+                .catch((err) => setError(String(err)));
+            }}
           />
           {!ownerEnrolled ? (
-            <div className="status__error">Enroll the owner before monitoring.</div>
+            <div className="monitoring-empty-owner">
+              <EmptyState
+                {...emptyStatePresets.ownerNotEnrolled({
+                  label: "Open Owner setup",
+                  onClick: () => setActiveScreen("owner"),
+                  variant: "primary",
+                })}
+              />
+            </div>
           ) : null}
           <div className="actions">
             <button
@@ -70,7 +87,12 @@ export const MonitoringScreen = () => {
           </div>
         </div>
 
-        <StatusCard status={monitor.status} observerScore={monitor.observerScore} error={error} />
+        <StatusCard
+          variant={isMonitoring && settings.debugOverlay && !debugFrame ? "skeleton" : "default"}
+          status={monitor.status}
+          observerScore={monitor.observerScore}
+          error={error}
+        />
       </div>
 
       {isMonitoring && !settings.debugOverlay ? (
@@ -98,7 +120,11 @@ export const MonitoringScreen = () => {
           <span>Debug overlay</span>
           <span>{settings.debugOverlay ? "On" : "Off"}</span>
         </div>
-        <div className="debug-panel__canvas">
+        <div
+          className={`debug-panel__canvas ${
+            isMonitoring && settings.debugOverlay && !debugFrame ? "debug-panel__canvas--shimmer" : ""
+          }`}
+        >
           {settings.debugOverlay ? <DebugOverlayCanvas frame={debugFrame} /> : null}
           {!settings.debugOverlay ? <div className="debug-panel__empty">Enable debug overlay in settings.</div> : null}
         </div>

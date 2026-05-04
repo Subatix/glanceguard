@@ -30,6 +30,10 @@ export const enrollOwnerFromImage = async (imageBytes: number[]): Promise<void> 
   await invoke("enroll_owner_from_image", { imageBytes });
 };
 
+export const enrollOwnerFromImageBatch = async (imageBytesList: number[][]): Promise<void> => {
+  await invoke("enroll_owner_from_image_batch", { imageBytesList });
+};
+
 export const enrollOwnerFromLive = async (): Promise<void> => {
   await invoke("enroll_owner_from_live");
 };

@@ -7,6 +7,7 @@ import { defaultSettings } from "../../settings/defaults";
 vi.mock("../../cv/ipc", () => ({
   clearOwner: vi.fn().mockResolvedValue(undefined),
   enrollOwnerFromImage: vi.fn().mockResolvedValue(undefined),
+  enrollOwnerFromImageBatch: vi.fn().mockResolvedValue(undefined),
   enrollOwnerFromLive: vi.fn().mockResolvedValue(undefined),
   getOwnerStatus: vi.fn().mockResolvedValue(false),
 }));
@@ -22,6 +23,9 @@ describe("OwnerSetupScreen", () => {
       monitor: { status: "idle" },
       debugFrame: undefined,
       error: undefined,
+      firstRunHydrated: false,
+      licenseGatePassed: false,
+      onboarding: { step: "welcome", completed: false },
     });
   });
 
