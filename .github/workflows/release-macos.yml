@@ -66,6 +66,7 @@ jobs:
             exit 1
           fi
           CERT_ID="$(echo "$CERT_LINE" | awk -F'"' '{print $2}')"
+          echo "::add-mask::$CERT_ID"
           echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
 
       - name: Build, notarize (notarytool), updater artifacts
