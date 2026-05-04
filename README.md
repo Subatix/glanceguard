@@ -1,8 +1,12 @@
 # GlanceGuard
 
-macOS desktop app (Tauri + React). Private workspace — see `.planning/` for milestone docs.
+macOS desktop app (Tauri + React) for webcam-based shoulder-surfing awareness.
 
-This repo began from the stock Tauri React template; native UI lives under `src/` and `src-tauri/`.
+**License:** [MIT](LICENSE). This repository is intended to be **open source**; publish it publicly when your GitHub remote and branding match.
+
+Implementation layout: frontend `src/`, native shell `src-tauri/`. Product / shipping notes live under `.planning/`.
+
+Planning assumes the marketing site and commerce APIs ship from a separate repo (**glanceguard_landing**) at **`glanceguard.app`**.
 
 ## Recommended IDE Setup
 

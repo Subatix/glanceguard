@@ -2,7 +2,9 @@
 name = "glanceguard"
 version = "0.1.0"
 description = "GlanceGuard desktop app"
-authors = ["you"]
+authors = ["<redacted>"]
+license = "MIT"
+repository = "https://github.com/Subatix/screen-peek-alert"
 edition = "2021"
 
 [features]
