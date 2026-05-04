@@ -26,7 +26,13 @@
     "createUpdaterArtifacts": true,
     "active": true,
     "targets": ["dmg", "app"],
-    "resources": ["models/scrfd.json", "models/arcface.json", "models/LICENSE.txt"],
+    "resources": [
+      "models/scrfd.json",
+      "models/arcface.json",
+      "models/LICENSE.txt",
+      "models/det_500m.onnx",
+      "models/w600k_mbf.onnx"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

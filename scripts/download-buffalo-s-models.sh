@@ -10,5 +10,5 @@ cleanup() { rm -rf "${TMP}"; }
 trap cleanup EXIT
 
 curl -fsSL -o "${TMP}/buffalo_s.zip" "${ZIP_URL}"
-unzip -q -j "${TMP}/buffalo_s.zip" det_500m.onnx w600k_mbf.onnx -d "${DEST}"
+unzip -o -q -j "${TMP}/buffalo_s.zip" det_500m.onnx w600k_mbf.onnx -d "${DEST}"
 echo "Wrote ${DEST}/det_500m.onnx and ${DEST}/w600k_mbf.onnx"

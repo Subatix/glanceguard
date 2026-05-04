@@ -21,8 +21,8 @@ target/
 src-tauri/target/
 
 # ONNX model weights (downloaded in Phase 2+; never commit large binaries)
-# ONNX model weights (downloaded in Phase 2+; never commit large binaries)
-src-tauri/models/*.onnx
+# ONNX: only buffalo_s weights (~5 MB total) are committed and bundled in the app.
+# Older multi-hundred‑MB ONNX must never return to git — use insightface downloader if these are missing.
 
 # Updater signing private key (pubkey stays in src-tauri/tauri.conf.json)
 src-tauri/.tauri-glanceguard-updater.key
