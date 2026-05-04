@@ -2,9 +2,9 @@
 
 macOS desktop app (Tauri + React) for webcam-based shoulder-surfing awareness.
 
-**License:** [MIT](LICENSE). This repository is intended to be **open source**; publish it publicly when your GitHub remote and branding match.
+**License:** [Apache License 2.0](LICENSE). You can sell official binaries (for example through Paddle) and keep this repo public—customers pay for convenience, Apple-signed/notarized builds, updates, and support. Apache-2.0 still allows anyone to build from source themselves.
 
-Implementation layout: frontend `src/`, native shell `src-tauri/`. Product / shipping notes live under `.planning/`.
+Implementation: frontend `src/`, native shell `src-tauri/`. Milestone notes under `.planning/`.
 
 Planning assumes the marketing site and commerce APIs ship from a separate repo (**glanceguard_landing**) at **`glanceguard.app`**.
 
