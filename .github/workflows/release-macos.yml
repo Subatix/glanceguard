@@ -58,15 +58,13 @@ jobs:
           security set-keychain-settings -lut 86400 build.keychain
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
-          security find-identity -v -p codesigning build.keychain
 
           CERT_LINE="$(security find-identity -v -p codesigning build.keychain | grep 'Developer ID Application' | head -1)"
           if [ -z "$CERT_LINE" ]; then
-            echo "No Developer ID Application identity in imported keychain. Export the correct .p12 from login keychain." >&2
+            echo "No Developer ID Application identity found in imported keychain." >&2
             exit 1
           fi
           CERT_ID="$(echo "$CERT_LINE" | awk -F'"' '{print $2}')"
-          echo "Using signing identity: $CERT_ID"
           echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
 
       - name: Build, notarize (notarytool), updater artifacts
