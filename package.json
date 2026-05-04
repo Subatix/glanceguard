@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "clean": "rm -rf dist dist-ssr node_modules/.vite node_modules/.cache test-results playwright-report coverage && cargo clean --manifest-path src-tauri/Cargo.toml",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
