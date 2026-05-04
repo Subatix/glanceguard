@@ -33,6 +33,7 @@ src-tauri/.tauri-glanceguard-updater.key
 
 # Local signing material / downloaded Apple portal artifacts
 *.certSigningRequest
+*.p8
 *.p12
 developerID_application.cer
 

@@ -71,15 +71,19 @@ jobs:
 
       - name: Build, notarize (notarytool), updater artifacts
         env:
-          # Apple ID auth: APPLE_PASSWORD must be an app-specific password (not your Apple ID login password).
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Alternatively set App Store Connect API key env vars in this step (see Tauri macOS signing docs).
-
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_PATH: ${{ github.workspace }}/private_keys/AuthKey_${{ secrets.APPLE_API_KEY }}.p8
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
+          if [ -z "${APPLE_API_ISSUER:-}" ]; then echo "Missing secret APPLE_API_ISSUER."; exit 1; fi
+          if [ -z "${APPLE_API_KEY:-}" ]; then echo "Missing secret APPLE_API_KEY."; exit 1; fi
+          if [ -z "${APPLE_API_KEY_P8:-}" ]; then echo "Missing secret APPLE_API_KEY_P8."; exit 1; fi
+          mkdir -p private_keys
+          printf '%s' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY_PATH"
+          chmod 600 "$APPLE_API_KEY_PATH"
           npm run tauri build -- --target universal-apple-darwin
 
       - name: List bundle artifacts
