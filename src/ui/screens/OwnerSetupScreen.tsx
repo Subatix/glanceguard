@@ -149,17 +149,15 @@ export const OwnerSetupScreen = () => {
           </div>
         </div>
 
-        {cameraActive && (
-          <div className="camera-preview">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="camera-preview__video"
-            />
-          </div>
-        )}
+        <div className={`camera-preview ${cameraActive ? "" : "camera-preview--hidden"}`}>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="camera-preview__video"
+          />
+        </div>
 
         <div className="field">
           <label className="field__label">Upload photo</label>

@@ -32,3 +32,10 @@ ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic", "downlo
 ndarray = "0.16"
 ring = "0.17.14"
 
+[profile.dev]
+opt-level = 2
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 2
+

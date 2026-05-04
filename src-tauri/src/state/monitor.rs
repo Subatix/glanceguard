@@ -5,6 +5,7 @@ use std::sync::{
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use image::codecs::jpeg::JpegEncoder;
 use tauri::{AppHandle, Emitter};
 
 use crate::cv::camera::open_camera;
@@ -13,13 +14,25 @@ use crate::cv::detector::FaceDetector;
 use crate::cv::embedder::FaceEmbedder;
 use crate::cv::matching::cosine_similarity;
 use crate::cv::scoring::compute_observer_score;
-use crate::cv::types::{AlertEvent, DebugFace, ErrorEvent, FrameEvent, OwnerProfile};
+use crate::cv::types::{AlertEvent, DebugFace, ErrorEvent, FaceDetection, FrameEvent, OwnerProfile};
 use crate::settings::{observer_threshold, owner_match_threshold, Settings};
 use crate::state::alert_state::{AlertState, MonitorState};
 
 pub struct MonitorHandle {
     stop: Arc<AtomicBool>,
     join: Option<JoinHandle<()>>,
+}
+
+const TARGET_FRAME_INTERVAL: Duration = Duration::from_millis(33);
+const MAX_TRACKED_FACES: usize = 2;
+const SIMILARITY_CACHE_TTL: Duration = Duration::from_millis(180);
+const DEBUG_JPEG_QUALITY: u8 = 35;
+
+#[derive(Clone)]
+struct FaceSimilaritySample {
+    bbox: crate::cv::types::BoundingBox,
+    similarity: f32,
+    sampled_at: Instant,
 }
 
 impl MonitorHandle {
@@ -78,8 +91,7 @@ fn run_loop(
     camera.open_stream().map_err(|e| e.to_string())?;
 
     let mut alert_state = AlertState::new();
-
-    let target_interval = Duration::from_millis(66);
+    let mut similarity_cache: Vec<FaceSimilaritySample> = Vec::new();
     
     while !stop.load(Ordering::SeqCst) {
         let frame_start = Instant::now();
@@ -89,31 +101,47 @@ fn run_loop(
             .map_err(|e| e.to_string())?;
         let rgb = image::DynamicImage::ImageRgb8(image).to_rgb8();
 
-        let detections = detector.detect(&rgb)?;
-        let mut faces = detections;
+        let mut faces = detector.detect(&rgb)?;
         faces.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        faces.truncate(3);
+        faces = suppress_nested_detections(faces);
+        faces.truncate(MAX_TRACKED_FACES);
 
-    let owner_profile = owner
-        .lock()
-        .map_err(|_| "Owner lock poisoned".to_string())?
-        .clone()
-        .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
+        let owner_profile = owner
+            .lock()
+            .map_err(|_| "Owner lock poisoned".to_string())?
+            .clone()
+            .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
 
         let mut similarities = Vec::with_capacity(faces.len());
+        let mut next_similarity_cache = Vec::with_capacity(faces.len());
         let mut owner_index: Option<usize> = None;
         let mut owner_similarity: Option<f32> = None;
+        let similarity_sampled_at = Instant::now();
 
         for (idx, face) in faces.iter().enumerate() {
-            let crop = crop_face(&rgb, &face.bbox)?;
-            let embedding = embedder.embed(&crop)?;
-            let similarity = cosine_similarity(&embedding, &owner_profile.embedding)?;
+            let similarity = if let Some(cached) =
+                lookup_cached_similarity(&similarity_cache, &face.bbox, similarity_sampled_at)
+            {
+                cached
+            } else {
+                let crop = crop_face(&rgb, &face.bbox)?;
+                let embedding = embedder.embed(&crop)?;
+                cosine_similarity(&embedding, &owner_profile.embedding)?
+            };
+
             similarities.push(similarity);
+            next_similarity_cache.push(FaceSimilaritySample {
+                bbox: face.bbox.clone(),
+                similarity,
+                sampled_at: similarity_sampled_at,
+            });
+
             if owner_similarity.map_or(true, |best| similarity > best) {
                 owner_similarity = Some(similarity);
                 owner_index = Some(idx);
             }
         }
+        similarity_cache = next_similarity_cache;
 
         let owner_threshold = owner_match_threshold();
         let owner_id = match owner_similarity {
@@ -136,15 +164,16 @@ fn run_loop(
             let similarity = similarities.get(idx).copied();
 
             let is_owner = Some(idx) == owner_id;
-            // Suppress duplicate detections: if a face overlaps heavily with the
-            // identified owner, treat it as the owner too (don't score as observer).
-            let overlaps_owner = !is_owner
+            let resembles_owner = similarity.map_or(false, |sim| sim >= owner_threshold);
+            // Suppress duplicate detections for the same physical face so one person
+            // is not scored as both owner and observer.
+            let duplicate_owner_detection = !is_owner
                 && owner_id
                     .and_then(|oid| faces.get(oid))
-                    .map(|owner_face| bbox_iou(&face.bbox, &owner_face.bbox) > 0.3)
+                    .map(|owner_face| is_duplicate_owner_detection(&face.bbox, &owner_face.bbox))
                     .unwrap_or(false);
 
-            let (label, observer_score) = if is_owner || overlaps_owner {
+            let (label, observer_score) = if is_owner || resembles_owner || duplicate_owner_detection {
                 ("owner".to_string(), None)
             } else {
                 let owner_bbox = owner_id.and_then(|oid| faces.get(oid)).map(|f| &f.bbox);
@@ -195,9 +224,16 @@ fn run_loop(
 
         if debug_overlay {
             let mut image_buffer = Vec::new();
-            // Encode as JPEG with quality 50 to save bandwidth
-            let _ = image::DynamicImage::ImageRgb8(rgb.clone())
-                .write_to(&mut std::io::Cursor::new(&mut image_buffer), image::ImageFormat::Jpeg);
+            // Encode debug frame with lower quality to keep UI throughput high.
+            let mut encoder = JpegEncoder::new_with_quality(&mut image_buffer, DEBUG_JPEG_QUALITY);
+            encoder
+                .encode(
+                    rgb.as_raw(),
+                    rgb.width(),
+                    rgb.height(),
+                    image::ExtendedColorType::Rgb8,
+                )
+                .map_err(|e| e.to_string())?;
 
             let frame_event = FrameEvent {
                 frame_width: rgb.width(),
@@ -221,8 +257,8 @@ fn run_loop(
         }
 
         let elapsed = frame_start.elapsed();
-        if elapsed < target_interval {
-            thread::sleep(target_interval - elapsed);
+        if elapsed < TARGET_FRAME_INTERVAL {
+            thread::sleep(TARGET_FRAME_INTERVAL - elapsed);
         }
     }
 
@@ -254,6 +290,114 @@ fn bbox_iou(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox
     let inter = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
     let union = a.width * a.height + b.width * b.height - inter;
     if union <= 0.0 { 0.0 } else { inter / union }
+}
+
+fn suppress_nested_detections(faces: Vec<FaceDetection>) -> Vec<FaceDetection> {
+    let mut kept: Vec<FaceDetection> = Vec::with_capacity(faces.len());
+
+    'candidate: for face in faces {
+        for existing in &kept {
+            if is_duplicate_bbox(&face.bbox, &existing.bbox) {
+                continue 'candidate;
+            }
+        }
+        kept.push(face);
+    }
+
+    kept
+}
+
+fn lookup_cached_similarity(
+    cache: &[FaceSimilaritySample],
+    bbox: &crate::cv::types::BoundingBox,
+    now: Instant,
+) -> Option<f32> {
+    let mut best_match: Option<(f32, f32)> = None;
+
+    for sample in cache {
+        if now.duration_since(sample.sampled_at) > SIMILARITY_CACHE_TTL {
+            continue;
+        }
+        if !is_duplicate_bbox(bbox, &sample.bbox) {
+            continue;
+        }
+        let score = bbox_overlap_score(bbox, &sample.bbox);
+        if best_match.map_or(true, |(best, _)| score > best) {
+            best_match = Some((score, sample.similarity));
+        }
+    }
+
+    best_match.map(|(_, similarity)| similarity)
+}
+
+fn is_duplicate_owner_detection(
+    face_bbox: &crate::cv::types::BoundingBox,
+    owner_bbox: &crate::cv::types::BoundingBox,
+) -> bool {
+    is_duplicate_bbox(face_bbox, owner_bbox)
+}
+
+fn is_duplicate_bbox(
+    a: &crate::cv::types::BoundingBox,
+    b: &crate::cv::types::BoundingBox,
+) -> bool {
+    let iou = bbox_iou(a, b);
+    let ios = bbox_ios(a, b);
+    if iou >= 0.18 || ios >= 0.72 {
+        return true;
+    }
+
+    let center_distance_ratio = bbox_center_distance_ratio(a, b);
+    let area_similarity = bbox_area_similarity(a, b);
+    center_distance_ratio <= 0.20 && area_similarity >= 0.05
+}
+
+fn bbox_area_similarity(
+    a: &crate::cv::types::BoundingBox,
+    b: &crate::cv::types::BoundingBox,
+) -> f32 {
+    let area_a = (a.width * a.height).max(1.0);
+    let area_b = (b.width * b.height).max(1.0);
+    if area_a > area_b {
+        area_b / area_a
+    } else {
+        area_a / area_b
+    }
+}
+
+fn bbox_center_distance_ratio(
+    a: &crate::cv::types::BoundingBox,
+    b: &crate::cv::types::BoundingBox,
+) -> f32 {
+    let (ax, ay) = bbox_center(a);
+    let (bx, by) = bbox_center(b);
+    let center_distance = ((ax - bx).powi(2) + (ay - by).powi(2)).sqrt();
+    let reference_diag =
+        (((a.width.powi(2) + a.height.powi(2)).sqrt() + (b.width.powi(2) + b.height.powi(2)).sqrt())
+            * 0.5)
+            .max(1.0);
+    center_distance / reference_diag
+}
+
+fn bbox_center(bbox: &crate::cv::types::BoundingBox) -> (f32, f32) {
+    (bbox.x + bbox.width * 0.5, bbox.y + bbox.height * 0.5)
+}
+
+fn bbox_ios(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox) -> f32 {
+    let x1 = a.x.max(b.x);
+    let y1 = a.y.max(b.y);
+    let x2 = (a.x + a.width).min(b.x + b.width);
+    let y2 = (a.y + a.height).min(b.y + b.height);
+    let inter = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
+    let min_area = (a.width * a.height).min(b.width * b.height);
+    if min_area <= 0.0 { 0.0 } else { inter / min_area }
+}
+
+fn bbox_overlap_score(
+    a: &crate::cv::types::BoundingBox,
+    b: &crate::cv::types::BoundingBox,
+) -> f32 {
+    bbox_iou(a, b).max(bbox_ios(a, b))
 }
 
 fn crop_face(image: &image::RgbImage, bbox: &crate::cv::types::BoundingBox) -> Result<image::RgbImage, String> {
