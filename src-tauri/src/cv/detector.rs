@@ -317,10 +317,12 @@ fn decode_stride(
                 let cx = (x as f32 + 0.5) * stride_f;
                 let cy = (y as f32 + 0.5) * stride_f;
                 let base = anchor * 4;
-                let l = bboxes.get(0, y, x, base);
-                let t = bboxes.get(0, y, x, base + 1);
-                let r = bboxes.get(0, y, x, base + 2);
-                let b = bboxes.get(0, y, x, base + 3);
+                // SCRFD ONNX outputs bbox / keypoint distances in *strides*, matching
+                // InsightFace's reference (`bbox_pred * stride`); multiply back to input pixels.
+                let l = bboxes.get(0, y, x, base) * stride_f;
+                let t = bboxes.get(0, y, x, base + 1) * stride_f;
+                let r = bboxes.get(0, y, x, base + 2) * stride_f;
+                let b = bboxes.get(0, y, x, base + 3) * stride_f;
 
                 let mut x1 = (cx - l) * scale_x;
                 let mut y1 = (cy - t) * scale_y;
@@ -343,8 +345,8 @@ fn decode_stride(
                     let mut points = Vec::with_capacity(5);
                     let kps_base = anchor * 10;
                     for i in 0..5 {
-                        let dx = kps_tensor.get(0, y, x, kps_base + i * 2);
-                        let dy = kps_tensor.get(0, y, x, kps_base + i * 2 + 1);
+                        let dx = kps_tensor.get(0, y, x, kps_base + i * 2) * stride_f;
+                        let dy = kps_tensor.get(0, y, x, kps_base + i * 2 + 1) * stride_f;
                         points.push(Point {
                             x: (cx + dx) * scale_x,
                             y: (cy + dy) * scale_y,
@@ -452,10 +454,12 @@ fn decode_stride_flat(
         let cx = (x as f32 + 0.5) * stride_f;
         let cy = (y as f32 + 0.5) * stride_f;
 
-        let l = bboxes[[idx, 0]];
-        let t = bboxes[[idx, 1]];
-        let r = bboxes[[idx, 2]];
-        let b = bboxes[[idx, 3]];
+        // SCRFD ONNX outputs bbox / keypoint distances in *strides*, matching
+        // InsightFace's reference (`bbox_pred * stride`); multiply back to input pixels.
+        let l = bboxes[[idx, 0]] * stride_f;
+        let t = bboxes[[idx, 1]] * stride_f;
+        let r = bboxes[[idx, 2]] * stride_f;
+        let b = bboxes[[idx, 3]] * stride_f;
 
         let mut x1 = (cx - l) * scale_x;
         let mut y1 = (cy - t) * scale_y;
@@ -477,8 +481,8 @@ fn decode_stride_flat(
         let landmarks = if let Some(kps_tensor) = kps {
             let mut points = Vec::with_capacity(5);
             for i in 0..5 {
-                let dx = kps_tensor[[idx, i * 2]];
-                let dy = kps_tensor[[idx, i * 2 + 1]];
+                let dx = kps_tensor[[idx, i * 2]] * stride_f;
+                let dy = kps_tensor[[idx, i * 2 + 1]] * stride_f;
                 points.push(Point {
                     x: (cx + dx) * scale_x,
                     y: (cy + dy) * scale_y,
@@ -628,6 +632,60 @@ mod detector_math_tests {
         let union = 16.0 + 16.0 - inter;
         let expected = inter / union;
         assert!((super::iou(&a, &b) - expected).abs() < 1e-4);
+    }
+
+    #[test]
+    fn decode_stride_flat_multiplies_distances_by_stride() {
+        // SCRFD post-process: `bbox = distance2bbox(anchor, bbox_pred * stride)`.
+        // 32×32 input with stride 16 → 2×2 anchor grid, single anchor per cell.
+        // Hot cell (0, 0) is centered at (8, 8) input pixels.
+        // bbox_pred = 0.5 per side → distances = 8 input pixels → bbox spans
+        // (0..16) in input space, fully inside the frame so no clamping artifacts.
+        let stride: u32 = 16;
+        let input = 32u32;
+        let frame_w = 32u32;
+        let frame_h = 32u32;
+        let scale_x = frame_w as f32 / input as f32;
+        let scale_y = frame_h as f32 / input as f32;
+
+        let scores = ndarray::array![[0.99_f32], [0.0], [0.0], [0.0]];
+        let bboxes = ndarray::array![
+            [0.5_f32, 0.5, 0.5, 0.5],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0]
+        ];
+        let scores_view = scores.view();
+        let bboxes_view = bboxes.view();
+
+        let mut detections = super::decode_stride_flat(
+            stride,
+            &scores_view,
+            &bboxes_view,
+            None,
+            input,
+            input,
+            0.5,
+            scale_x,
+            scale_y,
+            frame_w,
+            frame_h,
+        )
+        .expect("decode succeeds");
+        assert_eq!(detections.len(), 1);
+        let det = detections.pop().unwrap();
+        // 0.5 * stride = 8 input pixels each side → 16 input → 16 frame pixels (scale=1).
+        // Without the `* stride` multiplication this would collapse to ~1 pixel.
+        assert!(
+            (det.bbox.width - 16.0).abs() < 1e-3,
+            "width was {} (expected 16 after stride scaling)",
+            det.bbox.width
+        );
+        assert!(
+            (det.bbox.height - 16.0).abs() < 1e-3,
+            "height was {} (expected 16 after stride scaling)",
+            det.bbox.height
+        );
     }
 
     #[test]
