@@ -139,7 +139,16 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
         setCaptures(next);
         setPoseIndex(next.length);
       } else {
-        await enrollOwnerFromImageBatch(next);
+        try {
+          await enrollOwnerFromImageBatch(next);
+        } catch (batchErr) {
+          setCaptures([]);
+          setPoseIndex(0);
+          onError(
+            `${String(batchErr)} Progress was reset: quality checks run on every pose after you capture the last one. Start again from Center.`,
+          );
+          return;
+        }
         setCaptures(next);
         stopCamera();
         onComplete();

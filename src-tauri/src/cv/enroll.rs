@@ -15,6 +15,15 @@ use crate::cv::types::{OwnerModelInfo, OwnerProfile};
 use crate::settings::{owner_match_threshold, Settings};
 use crate::storage;
 
+/// Matches `POSES` order in `EnrollmentWizard.tsx`.
+const ENROLL_WIZARD_STEP_LABELS: [&str; 5] = [
+    "Center",
+    "Turn left",
+    "Turn right",
+    "Look up",
+    "Look down",
+];
+
 const TARGET_FRAME_COUNT: usize = 8;
 const ENROLL_MAX_WAIT: Duration = Duration::from_millis(3500);
 const FRAME_POLL: Duration = Duration::from_millis(35);
@@ -103,9 +112,17 @@ pub fn enroll_owner_from_rgb_images_batch(
 
     let mut samples: Vec<Vec<f32>> = Vec::with_capacity(images.len());
     for (i, image) in images.iter().enumerate() {
+        let step_label = ENROLL_WIZARD_STEP_LABELS[i];
         let emb =
             embedding_from_rgb_image(image, settings, &mut detector, &mut embedder, &embedder_config)
-                .map_err(|e| format!("Pose {}: {}", i + 1, e))?;
+                .map_err(|e| {
+                    format!(
+                        "{} (saved pose {} of 5 — validated only after the final capture): {}",
+                        step_label,
+                        i + 1,
+                        e
+                    )
+                })?;
         samples.push(emb);
     }
 
