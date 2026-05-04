@@ -16,6 +16,9 @@ dist-ssr
 target/
 src-tauri/target/
 
+# ONNX model weights (downloaded in Phase 2+; never commit large binaries)
+src-tauri/models/*.onnx
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
