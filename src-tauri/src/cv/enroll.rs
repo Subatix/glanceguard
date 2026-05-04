@@ -11,7 +11,7 @@ use crate::cv::embedder::{EmbedderConfig, FaceEmbedder};
 use crate::cv::matching::{calibrate_personal_threshold, mean_embedding};
 use crate::cv::preprocess::{align_face_5pt, maybe_apply_clahe_luminance};
 use crate::cv::quality::pass_quality_gate;
-use crate::cv::types::{OwnerModelInfo, OwnerProfile};
+use crate::cv::types::{FaceDetection, OwnerModelInfo, OwnerProfile};
 use crate::settings::{owner_match_threshold, Settings};
 use crate::storage;
 
@@ -28,6 +28,42 @@ const TARGET_FRAME_COUNT: usize = 8;
 const ENROLL_MAX_WAIT: Duration = Duration::from_millis(3500);
 const FRAME_POLL: Duration = Duration::from_millis(35);
 
+/// Prefer larger faces first so we do not lock onto a tiny high-score false positive when multiple boxes exist.
+fn pick_enrollment_face_index(image: &RgbImage, faces: &[FaceDetection]) -> Result<usize, String> {
+    let mut order: Vec<usize> = (0..faces.len()).collect();
+    order.sort_by(|&i, &j| {
+        let ai = faces[i].bbox.width * faces[i].bbox.height;
+        let aj = faces[j].bbox.width * faces[j].bbox.height;
+        aj.partial_cmp(&ai).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let mut last_err: Option<String> = None;
+    for &idx in &order {
+        match pass_quality_gate(image, &faces[idx]) {
+            Ok(()) => return Ok(idx),
+            Err(e) => last_err = Some(e),
+        }
+    }
+
+    Err(last_err.unwrap_or_else(|| "No suitable face detected for enrollment".into()))
+}
+
+/// Detector + quality gate only (no embedder). Matches face picking used by [`embedding_from_rgb_image`].
+pub fn validate_enrollment_snapshot_quality(
+    app: &AppHandle,
+    image: &RgbImage,
+) -> Result<(), String> {
+    crate::models::ensure_models_verified(app)?;
+    let detector_config = load_detector_config(app)?;
+    let mut detector = FaceDetector::new(app, detector_config)?;
+    let faces = detector.detect(image)?;
+    if faces.is_empty() {
+        return Err("No face detected for enrollment".into());
+    }
+    pick_enrollment_face_index(image, &faces)?;
+    Ok(())
+}
+
 /// One embedding from a still RGB frame using the same detector / embedder / quality path as live enrollment.
 pub fn embedding_from_rgb_image(
     image: &RgbImage,
@@ -36,25 +72,17 @@ pub fn embedding_from_rgb_image(
     embedder: &mut FaceEmbedder,
     embedder_config: &EmbedderConfig,
 ) -> Result<Vec<f32>, String> {
-    let mut faces = detector.detect(image)?;
+    let faces = detector.detect(image)?;
     if faces.is_empty() {
         return Err("No face detected for enrollment".into());
     }
-    faces.sort_by(|a, b| {
-        b.score
-            .partial_cmp(&a.score)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-    let best = faces
-        .into_iter()
-        .next()
-        .ok_or_else(|| "No suitable face detected".to_string())?;
 
-    pass_quality_gate(image, &best)?;
+    let idx = pick_enrollment_face_index(image, &faces)?;
+    let face = &faces[idx];
 
     let mut aligned = align_face_5pt(
         image,
-        &best.landmarks,
+        &face.landmarks,
         embedder_config.input_width,
         embedder_config.input_height,
     )?;

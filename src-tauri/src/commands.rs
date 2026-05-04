@@ -139,6 +139,12 @@ pub fn enroll_owner_from_image_batch(
 }
 
 #[tauri::command(async)]
+pub fn validate_enrollment_snapshot(app: AppHandle, image_bytes: Vec<u8>) -> Result<(), String> {
+    let image = image_from_bytes(&image_bytes)?;
+    enroll::validate_enrollment_snapshot_quality(&app, &image)
+}
+
+#[tauri::command(async)]
 pub fn enroll_owner_from_live(
     state: State<'_, AppState>,
     app: AppHandle,

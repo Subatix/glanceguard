@@ -34,6 +34,11 @@ export const enrollOwnerFromImageBatch = async (imageBytesList: number[][]): Pro
   await invoke("enroll_owner_from_image_batch", { imageBytesList });
 };
 
+/** Runs detector + quality gate on-device (same face picking as enrollment). Call after each wizard snapshot. */
+export const validateEnrollmentSnapshot = async (imageBytes: number[]): Promise<void> => {
+  await invoke("validate_enrollment_snapshot", { imageBytes });
+};
+
 export const enrollOwnerFromLive = async (): Promise<void> => {
   await invoke("enroll_owner_from_live");
 };

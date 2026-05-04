@@ -96,6 +96,7 @@ pub fn run() {
             commands::stop_monitoring,
             commands::enroll_owner_from_image,
             commands::enroll_owner_from_image_batch,
+            commands::validate_enrollment_snapshot,
             commands::enroll_owner_from_live,
             commands::clear_owner,
             commands::get_owner_status

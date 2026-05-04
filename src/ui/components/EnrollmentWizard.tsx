@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { enrollOwnerFromImageBatch } from "../../cv/ipc";
+import { enrollOwnerFromImageBatch, validateEnrollmentSnapshot } from "../../cv/ipc";
 import { PrivacyOnboardingFooter } from "./PrivacyOnboardingFooter";
 
 const POSES = [
@@ -125,6 +125,14 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       const buffer = await blob.arrayBuffer();
       const bytes = Array.from(new Uint8Array(buffer));
 
+      const stepTitle = POSES[poseIndex].title;
+      try {
+        await validateEnrollmentSnapshot(bytes);
+      } catch (err) {
+        onError(`${stepTitle}: ${String(err)}`);
+        return;
+      }
+
       // Recover from older bug: fifth frame was committed before RPC; failed submits left len > TOTAL and Rust rejects len !== 5.
       let base = captures;
       if (base.length >= TOTAL) {
@@ -158,7 +166,7 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
     } finally {
       setBusy(false);
     }
-  }, [captures, onClearError, onComplete, onError, stopCamera]);
+  }, [captures, onClearError, onComplete, onError, poseIndex, stopCamera]);
 
   const progress = captures.length / TOTAL;
   const dashOffset = RING_C * (1 - progress);
@@ -170,7 +178,10 @@ export const EnrollmentWizard = ({ onComplete, onError, onClearError }: Props) =
       <div className="enrollment-wizard__header">
         <h3 className="enrollment-wizard__title">Enroll your face</h3>
         <p className="enrollment-wizard__subtitle">
-          Five quick poses help the app recognize you in different positions. Your face never leaves this device.
+          Five quick poses help the app recognize you in different positions. Your face never leaves this device.{" "}
+          <span className="muted enrollment-wizard__subtitle-tip">
+            Move closer until your face fills much of the preview — each pose is checked before continuing.
+          </span>
         </p>
       </div>
 
