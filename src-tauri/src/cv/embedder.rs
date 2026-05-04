@@ -26,6 +26,8 @@ pub struct EmbedderConfig {
 pub struct FaceEmbedder {
     session: Session,
     config: EmbedderConfig,
+    channel_order: ChannelOrder,
+    layout: TensorLayout,
 }
 
 impl FaceEmbedder {
@@ -38,30 +40,41 @@ impl FaceEmbedder {
             .commit_from_file(model_path)
             .map_err(|e| e.to_string())?;
 
-        Ok(Self { session, config })
+        let channel_order = parse_channel_order(&config.channel_order)?;
+        let layout = parse_layout(&config.input_layout)?;
+
+        Ok(Self {
+            session,
+            config,
+            channel_order,
+            layout,
+        })
     }
 
     pub fn embed(&mut self, image: &RgbImage) -> Result<Vec<f32>, String> {
         let resized = resize_rgb(image, self.config.input_width, self.config.input_height)?;
-        let order = parse_channel_order(&self.config.channel_order)?;
-        let layout = parse_layout(&self.config.input_layout)?;
-        let tensor_data =
-            image_to_tensor_f32(&resized, self.config.mean, self.config.std, order, layout);
+        let tensor_data = image_to_tensor_f32(
+            &resized,
+            self.config.mean,
+            self.config.std,
+            self.channel_order,
+            self.layout,
+        );
 
-        let (c, h, w) = match layout {
+        let (c, h, w) = match self.layout {
             TensorLayout::Nchw => (3usize, resized.height() as usize, resized.width() as usize),
             TensorLayout::Nhwc => (3usize, resized.height() as usize, resized.width() as usize),
         };
 
-        let input_tensor = match layout {
+        let input_tensor = match self.layout {
             TensorLayout::Nchw => {
-                let array = Array4::from_shape_vec((1, c, h, w), tensor_data)
-                    .map_err(|e| e.to_string())?;
+                let array =
+                    Array4::from_shape_vec((1, c, h, w), tensor_data).map_err(|e| e.to_string())?;
                 Tensor::from_array(array).map_err(|e| e.to_string())?
             }
             TensorLayout::Nhwc => {
-                let array = Array4::from_shape_vec((1, h, w, c), tensor_data)
-                    .map_err(|e| e.to_string())?;
+                let array =
+                    Array4::from_shape_vec((1, h, w, c), tensor_data).map_err(|e| e.to_string())?;
                 Tensor::from_array(array).map_err(|e| e.to_string())?
             }
         };
@@ -83,7 +96,6 @@ impl FaceEmbedder {
 
         Ok(l2_normalize(embedding))
     }
-
 }
 
 fn resolve_model_path(app: &AppHandle, file: &str) -> Result<PathBuf, String> {

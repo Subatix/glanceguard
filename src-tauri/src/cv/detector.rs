@@ -37,6 +37,8 @@ pub struct DetectorOutputSpec {
 pub struct FaceDetector {
     session: Session,
     config: DetectorConfig,
+    channel_order: ChannelOrder,
+    layout: TensorLayout,
 }
 
 impl FaceDetector {
@@ -49,22 +51,33 @@ impl FaceDetector {
             .commit_from_file(model_path)
             .map_err(|e| e.to_string())?;
 
-        Ok(Self { session, config })
+        let channel_order = parse_channel_order(&config.channel_order)?;
+        let layout = parse_layout(&config.input_layout)?;
+
+        Ok(Self {
+            session,
+            config,
+            channel_order,
+            layout,
+        })
     }
 
     pub fn detect(&mut self, frame: &RgbImage) -> Result<Vec<FaceDetection>, String> {
         let resized = resize_rgb(frame, self.config.input_width, self.config.input_height)?;
-        let order = parse_channel_order(&self.config.channel_order)?;
-        let layout = parse_layout(&self.config.input_layout)?;
-        let tensor_data =
-            image_to_tensor_f32(&resized, self.config.mean, self.config.std, order, layout);
+        let tensor_data = image_to_tensor_f32(
+            &resized,
+            self.config.mean,
+            self.config.std,
+            self.channel_order,
+            self.layout,
+        );
 
-        let (c, h, w) = match layout {
+        let (c, h, w) = match self.layout {
             TensorLayout::Nchw => (3usize, resized.height() as usize, resized.width() as usize),
             TensorLayout::Nhwc => (3usize, resized.height() as usize, resized.width() as usize),
         };
 
-        let input_tensor = match layout {
+        let input_tensor = match self.layout {
             TensorLayout::Nchw => {
                 let array = ndarray::Array4::from_shape_vec((1, c, h, w), tensor_data)
                     .map_err(|e| e.to_string())?;
@@ -162,7 +175,6 @@ impl FaceDetector {
 
         Ok(nms(detections, self.config.nms_threshold))
     }
-
 }
 
 fn resolve_model_path(app: &AppHandle, file: &str) -> Result<PathBuf, String> {
@@ -215,12 +227,8 @@ impl<'a> TensorView<'a> {
 
     fn get(&self, n: usize, y: usize, x: usize, c: usize) -> f32 {
         let idx = match self.layout {
-            TensorLayout::Nchw => {
-                ((n * self.dims[1] + c) * self.dims[2] + y) * self.dims[3] + x
-            }
-            TensorLayout::Nhwc => {
-                ((n * self.dims[1] + y) * self.dims[2] + x) * self.dims[3] + c
-            }
+            TensorLayout::Nchw => ((n * self.dims[1] + c) * self.dims[2] + y) * self.dims[3] + x,
+            TensorLayout::Nhwc => ((n * self.dims[1] + y) * self.dims[2] + x) * self.dims[3] + c,
         };
         self.data[idx]
     }
@@ -337,18 +345,43 @@ fn decode_stride(
                             y: (cy + dy) * scale_y,
                         });
                     }
-                    [points[0].clone(), points[1].clone(), points[2].clone(), points[3].clone(), points[4].clone()]
+                    [
+                        points[0].clone(),
+                        points[1].clone(),
+                        points[2].clone(),
+                        points[3].clone(),
+                        points[4].clone(),
+                    ]
                 } else {
                     [
-                        Point { x: bbox.x, y: bbox.y },
-                        Point { x: bbox.x + bbox.width, y: bbox.y },
-                        Point { x: bbox.x + bbox.width * 0.5, y: bbox.y + bbox.height * 0.5 },
-                        Point { x: bbox.x, y: bbox.y + bbox.height },
-                        Point { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+                        Point {
+                            x: bbox.x,
+                            y: bbox.y,
+                        },
+                        Point {
+                            x: bbox.x + bbox.width,
+                            y: bbox.y,
+                        },
+                        Point {
+                            x: bbox.x + bbox.width * 0.5,
+                            y: bbox.y + bbox.height * 0.5,
+                        },
+                        Point {
+                            x: bbox.x,
+                            y: bbox.y + bbox.height,
+                        },
+                        Point {
+                            x: bbox.x + bbox.width,
+                            y: bbox.y + bbox.height,
+                        },
                     ]
                 };
 
-                detections.push(FaceDetection { bbox, score, landmarks });
+                detections.push(FaceDetection {
+                    bbox,
+                    score,
+                    landmarks,
+                });
             }
         }
     }
@@ -455,15 +488,34 @@ fn decode_stride_flat(
             ]
         } else {
             [
-                Point { x: bbox.x, y: bbox.y },
-                Point { x: bbox.x + bbox.width, y: bbox.y },
-                Point { x: bbox.x + bbox.width * 0.5, y: bbox.y + bbox.height * 0.5 },
-                Point { x: bbox.x, y: bbox.y + bbox.height },
-                Point { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+                Point {
+                    x: bbox.x,
+                    y: bbox.y,
+                },
+                Point {
+                    x: bbox.x + bbox.width,
+                    y: bbox.y,
+                },
+                Point {
+                    x: bbox.x + bbox.width * 0.5,
+                    y: bbox.y + bbox.height * 0.5,
+                },
+                Point {
+                    x: bbox.x,
+                    y: bbox.y + bbox.height,
+                },
+                Point {
+                    x: bbox.x + bbox.width,
+                    y: bbox.y + bbox.height,
+                },
             ]
         };
 
-        detections.push(FaceDetection { bbox, score, landmarks });
+        detections.push(FaceDetection {
+            bbox,
+            score,
+            landmarks,
+        });
     }
 
     Ok(detections)
@@ -474,7 +526,11 @@ fn clamp(value: f32, min: f32, max: f32) -> f32 {
 }
 
 fn nms(mut detections: Vec<FaceDetection>, iou_threshold: f32) -> Vec<FaceDetection> {
-    detections.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    detections.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let mut kept = Vec::new();
     let mut suppressed = vec![false; detections.len()];
 

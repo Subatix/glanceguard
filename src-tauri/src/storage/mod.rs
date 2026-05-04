@@ -45,6 +45,10 @@ pub fn load_owner_profile(app: &AppHandle) -> Result<Option<OwnerProfile>, Strin
     let key = get_encryption_key(app)?;
     let plaintext = decrypt(&key, &encrypted)?;
     let profile: OwnerProfile = serde_json::from_slice(&plaintext).map_err(|e| e.to_string())?;
+    if profile.validate_enrollment_complete().is_err() {
+        clear_owner_profile(app)?;
+        return Ok(None);
+    }
     Ok(Some(profile))
 }
 
@@ -70,6 +74,8 @@ pub fn clear_owner_profile(app: &AppHandle) -> Result<(), String> {
 
 pub fn new_owner_profile(
     embedding: Vec<f32>,
+    embedding_samples: Vec<Vec<f32>>,
+    personal_threshold: f32,
     model_info: OwnerModelInfo,
 ) -> OwnerProfile {
     let created_at_epoch = SystemTime::now()
@@ -79,6 +85,8 @@ pub fn new_owner_profile(
 
     OwnerProfile {
         embedding,
+        embedding_samples,
+        personal_threshold: Some(personal_threshold),
         model: model_info,
         created_at_epoch,
     }
@@ -91,18 +99,12 @@ struct EncryptedPayload {
 }
 
 fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let base = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| e.to_string())?;
+    let base = app.path().app_config_dir().map_err(|e| e.to_string())?;
     Ok(base.join(SETTINGS_FILE))
 }
 
 fn owner_profile_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let base = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(base.join(OWNER_PROFILE_FILE))
 }
 
@@ -150,7 +152,8 @@ fn encrypt(key: &[u8], plaintext: &[u8]) -> Result<EncryptedPayload, String> {
         .map_err(|_| "Failed to generate nonce".to_string())?;
     let nonce = Nonce::assume_unique_for_key(nonce_bytes);
 
-    let unbound = UnboundKey::new(&AES_256_GCM, key).map_err(|_| "Invalid encryption key".to_string())?;
+    let unbound =
+        UnboundKey::new(&AES_256_GCM, key).map_err(|_| "Invalid encryption key".to_string())?;
     let key = LessSafeKey::new(unbound);
     let mut in_out = plaintext.to_vec();
     key.seal_in_place_append_tag(nonce, Aad::empty(), &mut in_out)
@@ -172,7 +175,8 @@ fn decrypt(key: &[u8], payload: &EncryptedPayload) -> Result<Vec<u8>, String> {
 
     let nonce = Nonce::try_assume_unique_for_key(&payload.nonce)
         .map_err(|_| "Invalid nonce".to_string())?;
-    let unbound = UnboundKey::new(&AES_256_GCM, key).map_err(|_| "Invalid encryption key".to_string())?;
+    let unbound =
+        UnboundKey::new(&AES_256_GCM, key).map_err(|_| "Invalid encryption key".to_string())?;
     let key = LessSafeKey::new(unbound);
 
     let mut in_out = payload.ciphertext.clone();

@@ -16,6 +16,8 @@ pub struct Settings {
     pub sensitivity: Sensitivity,
     pub cooldown_sec: u64,
     pub debug_overlay: bool,
+    #[serde(default)]
+    pub clahe_face_preproc: bool,
     pub camera: Option<CameraSelection>,
 }
 
@@ -25,6 +27,7 @@ impl Default for Settings {
             sensitivity: Sensitivity::Medium,
             cooldown_sec: 30,
             debug_overlay: false,
+            clahe_face_preproc: false,
             camera: None,
         }
     }
@@ -45,6 +48,7 @@ pub struct SettingsUpdate {
     pub sensitivity: Option<Sensitivity>,
     pub cooldown_sec: Option<u64>,
     pub debug_overlay: Option<bool>,
+    pub clahe_face_preproc: Option<bool>,
     pub camera: Option<CameraSelection>,
 }
 
@@ -61,6 +65,9 @@ impl SettingsUpdate {
         }
         if let Some(debug_overlay) = self.debug_overlay {
             settings.debug_overlay = debug_overlay;
+        }
+        if let Some(clahe) = self.clahe_face_preproc {
+            settings.clahe_face_preproc = clahe;
         }
         if let Some(camera) = self.camera {
             settings.camera = Some(camera);

@@ -6,6 +6,9 @@ use nokhwa::utils::{
 };
 use nokhwa::{query, Camera};
 
+#[cfg(target_os = "macos")]
+use objc::{class, msg_send, sel, sel_impl};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value")]
 pub enum CameraSelection {
@@ -43,13 +46,53 @@ pub fn list_cameras() -> Result<Vec<CameraInfo>, String> {
     Ok(results)
 }
 
+/// Map AVFoundation video authorization to an actionable message before opening the device.
+pub fn ensure_camera_video_permission() -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let status = unsafe { avfoundation_video_authorization_status() };
+        if status == 1 || status == 2 {
+            return Err(
+                "Camera access is denied for Screen Peek Alert. Enable the camera in System Settings → Privacy & Security → Camera, then relaunch the app.".into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+#[link(name = "AVFoundation", kind = "framework")]
+extern "C" {
+    static AVMediaTypeVideo: *const objc::runtime::Object;
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn avfoundation_video_authorization_status() -> i32 {
+    let cls = class!(AVCaptureDevice);
+    let status: isize = msg_send![cls, authorizationStatusForMediaType: AVMediaTypeVideo];
+    status as i32
+}
+
 pub fn open_camera(selection: &CameraSelection) -> Result<Camera, String> {
+    ensure_camera_video_permission()?;
     let index = resolve_camera_index(selection)?;
+    let res = Resolution::new(960, 540);
+    let fps = 30u32;
     let requests = [
         RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(CameraFormat::new(
-            Resolution::new(960, 540),
+            res,
             FrameFormat::MJPEG,
-            30,
+            fps,
+        ))),
+        RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(CameraFormat::new(
+            res,
+            FrameFormat::YUYV,
+            fps,
+        ))),
+        RequestedFormat::new::<RgbFormat>(RequestedFormatType::Closest(CameraFormat::new(
+            res,
+            FrameFormat::NV12,
+            fps,
         ))),
         RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestFrameRate),
         RequestedFormat::new::<RgbFormat>(RequestedFormatType::None),
@@ -97,7 +140,9 @@ fn camera_matches_selection(
     match selection {
         CameraSelection::Index(selected) => match camera_index {
             CameraIndex::Index(index) => index == selected,
-            CameraIndex::String(_) => usize::try_from(*selected).map_or(false, |value| value == position),
+            CameraIndex::String(_) => {
+                usize::try_from(*selected).map_or(false, |value| value == position)
+            }
         },
         CameraSelection::StableId(id) => {
             matches!(camera_index, CameraIndex::String(value) if value == id)

@@ -30,8 +30,12 @@ image = { version = "0.25", features = ["jpeg", "png", "bmp", "gif", "webp"] }
 fast_image_resize = { version = "4", features = ["image"] }
 ort = { version = "=2.0.0-rc.10", features = ["ndarray", "load-dynamic", "download-binaries", "copy-dylibs"] }
 ndarray = "0.16"
+nalgebra = { version = "0.33", default-features = false, features = ["std"] }
 ring = "0.17.14"
 ureq = { version = "2.12", features = ["tls"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
 
 [dev-dependencies]
 insta = "1"

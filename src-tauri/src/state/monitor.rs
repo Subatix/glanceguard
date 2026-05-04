@@ -6,15 +6,21 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use image::codecs::jpeg::JpegEncoder;
+use image::RgbImage;
 use tauri::{AppHandle, Emitter};
 
 use crate::cv::camera::open_camera;
 use crate::cv::config::{load_detector_config, load_embedder_config};
 use crate::cv::detector::FaceDetector;
 use crate::cv::embedder::FaceEmbedder;
-use crate::cv::matching::cosine_similarity;
+use crate::cv::matching::{max_cosine_vs_samples, owner_cosine_threshold};
+use crate::cv::preprocess::{align_face_5pt, maybe_apply_clahe_luminance};
+use crate::cv::quality::pass_quality_gate;
 use crate::cv::scoring::compute_observer_score;
-use crate::cv::types::{AlertEvent, DebugFace, ErrorEvent, FaceDetection, FrameEvent, OwnerProfile};
+use crate::cv::tracker::{FaceTracker, StableFaceLabel};
+use crate::cv::types::{
+    AlertEvent, DebugFace, ErrorEvent, FaceDetection, FrameEvent, MonitorStoppedEvent, OwnerProfile,
+};
 use crate::settings::{observer_threshold, owner_match_threshold, Settings};
 use crate::state::alert_state::{AlertState, MonitorState};
 
@@ -25,10 +31,13 @@ pub struct MonitorHandle {
 
 const TARGET_FRAME_INTERVAL: Duration = Duration::from_millis(33);
 const MAX_TRACKED_FACES: usize = 2;
-const SIMILARITY_CACHE_TTL: Duration = Duration::from_millis(180);
 const DEBUG_JPEG_QUALITY: u8 = 35;
+const CONSECUTIVE_ERROR_STOP: u32 = 5;
 
-fn require_matching_embedder_model(profile: &OwnerProfile, embedder_model_file: &str) -> Result<(), String> {
+fn require_matching_embedder_model(
+    profile: &OwnerProfile,
+    embedder_model_file: &str,
+) -> Result<(), String> {
     if profile.model.name != embedder_model_file {
         return Err(format!(
             "Owner was enrolled with embedder `{}`, but the app is configured for `{}`. Clear the owner profile and enroll again.",
@@ -36,13 +45,6 @@ fn require_matching_embedder_model(profile: &OwnerProfile, embedder_model_file: 
         ));
     }
     Ok(())
-}
-
-#[derive(Clone)]
-struct FaceSimilaritySample {
-    bbox: crate::cv::types::BoundingBox,
-    similarity: f32,
-    sampled_at: Instant,
 }
 
 impl MonitorHandle {
@@ -66,9 +68,7 @@ pub fn start_monitoring(
     let owner_clone = owner.clone();
 
     let join = thread::spawn(move || {
-        if let Err(err) = run_loop(app_clone, settings_clone, owner_clone, stop_clone) {
-            let _ = emit_error(&app, &err);
-        }
+        monitor_worker(app_clone, settings_clone, owner_clone, stop_clone);
     });
 
     Ok(MonitorHandle {
@@ -77,213 +77,283 @@ pub fn start_monitoring(
     })
 }
 
-fn run_loop(
+fn monitor_worker(
     app: AppHandle,
     settings: Arc<Mutex<Settings>>,
     owner: Arc<Mutex<Option<OwnerProfile>>>,
     stop: Arc<AtomicBool>,
-) -> Result<(), String> {
-    let selection = {
-        let settings_guard = settings
-            .lock()
-            .map_err(|_| "Settings lock poisoned".to_string())?;
-        settings_guard
-            .camera
-            .clone()
-            .ok_or_else(|| "Select a camera before monitoring".to_string())?
-    };
-    let detector_config = load_detector_config(&app)?;
-    let embedder_config = load_embedder_config(&app)?;
-    let mut detector = FaceDetector::new(&app, detector_config)?;
-    let mut embedder = FaceEmbedder::new(&app, embedder_config.clone())?;
-
-    {
-        let owner_guard = owner
-            .lock()
-            .map_err(|_| "Owner lock poisoned".to_string())?;
-        let profile = owner_guard
-            .as_ref()
-            .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
-        require_matching_embedder_model(profile, &embedder_config.model_file)?;
-    }
-
-    let mut camera = open_camera(&selection)?;
-    camera.open_stream().map_err(|e| e.to_string())?;
-
-    let mut alert_state = AlertState::new();
-    let mut similarity_cache: Vec<FaceSimilaritySample> = Vec::new();
-    
-    while !stop.load(Ordering::SeqCst) {
-        let frame_start = Instant::now();
-        let frame = camera.frame().map_err(|e| e.to_string())?;
-        let image = frame
-            .decode_image::<nokhwa::pixel_format::RgbFormat>()
-            .map_err(|e| e.to_string())?;
-        let rgb = image::DynamicImage::ImageRgb8(image).to_rgb8();
-
-        let mut faces = detector.detect(&rgb)?;
-        faces.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        faces = suppress_nested_detections(faces);
-        faces.truncate(MAX_TRACKED_FACES);
-
-        let owner_profile = owner
-            .lock()
-            .map_err(|_| "Owner lock poisoned".to_string())?
-            .clone()
-            .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
-
-        let mut similarities = Vec::with_capacity(faces.len());
-        let mut next_similarity_cache = Vec::with_capacity(faces.len());
-        let mut owner_index: Option<usize> = None;
-        let mut owner_similarity: Option<f32> = None;
-        let similarity_sampled_at = Instant::now();
-
-        for (idx, face) in faces.iter().enumerate() {
-            let similarity = if let Some(cached) =
-                lookup_cached_similarity(&similarity_cache, &face.bbox, similarity_sampled_at)
-            {
-                cached
-            } else {
-                let crop = crop_face(&rgb, &face.bbox)?;
-                let embedding = embedder.embed(&crop)?;
-                cosine_similarity(&embedding, &owner_profile.embedding)?
-            };
-
-            similarities.push(similarity);
-            next_similarity_cache.push(FaceSimilaritySample {
-                bbox: face.bbox.clone(),
-                similarity,
-                sampled_at: similarity_sampled_at,
-            });
-
-            if owner_similarity.map_or(true, |best| similarity > best) {
-                owner_similarity = Some(similarity);
-                owner_index = Some(idx);
-            }
-        }
-        similarity_cache = next_similarity_cache;
-
-        let owner_threshold = owner_match_threshold();
-        let owner_id = match owner_similarity {
-            Some(sim) if sim >= owner_threshold => owner_index,
-            _ => None,
+) {
+    let session = (|| -> Result<(), String> {
+        let selection = {
+            let settings_guard = settings
+                .lock()
+                .map_err(|_| "Settings lock poisoned".to_string())?;
+            settings_guard
+                .camera
+                .clone()
+                .ok_or_else(|| "Select a camera before monitoring".to_string())?
         };
+        let detector_config = load_detector_config(&app)?;
+        let embedder_config = load_embedder_config(&app)?;
+        let mut detector = FaceDetector::new(&app, detector_config)?;
+        let mut embedder = FaceEmbedder::new(&app, embedder_config.clone())?;
 
-        let settings_guard = settings
-            .lock()
-            .map_err(|_| "Settings lock poisoned".to_string())?;
-        let sensitivity = settings_guard.sensitivity.clone();
-        let cooldown_sec = settings_guard.cooldown_sec;
-        let debug_overlay = settings_guard.debug_overlay;
-        drop(settings_guard);
+        {
+            let owner_guard = owner
+                .lock()
+                .map_err(|_| "Owner lock poisoned".to_string())?;
+            let profile = owner_guard
+                .as_ref()
+                .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
+            profile.validate_enrollment_complete()?;
+            require_matching_embedder_model(profile, &embedder_config.model_file)?;
+        }
 
-        let mut max_score = None;
-        let mut debug_faces = Vec::new();
+        let mut camera = open_camera(&selection)?;
+        camera.open_stream().map_err(|e| e.to_string())?;
 
-        for (idx, face) in faces.iter().enumerate() {
-            let similarity = similarities.get(idx).copied();
+        let mut alert_state = AlertState::new();
+        let mut tracker = FaceTracker::new();
+        let w = embedder_config.input_width;
+        let h = embedder_config.input_height;
 
-            let is_owner = Some(idx) == owner_id;
-            let resembles_owner = similarity.map_or(false, |sim| sim >= owner_threshold);
-            // Suppress duplicate detections for the same physical face so one person
-            // is not scored as both owner and observer.
-            let duplicate_owner_detection = !is_owner
-                && owner_id
-                    .and_then(|oid| faces.get(oid))
-                    .map(|owner_face| is_duplicate_owner_detection(&face.bbox, &owner_face.bbox))
-                    .unwrap_or(false);
+        let mut consecutive_failures = 0u32;
 
-            let (label, observer_score) = if is_owner || resembles_owner || duplicate_owner_detection {
-                ("owner".to_string(), None)
-            } else {
-                let owner_bbox = owner_id.and_then(|oid| faces.get(oid)).map(|f| &f.bbox);
-                let score = compute_observer_score(
-                    face,
-                    owner_bbox,
-                    similarity,
-                    rgb.width(),
-                    rgb.height(),
-                    sensitivity.clone(),
-                );
-                if max_score.map_or(true, |best| score > best) {
-                    max_score = Some(score);
+        while !stop.load(Ordering::SeqCst) {
+            let frame_start = Instant::now();
+
+            let step = (|| -> Result<(), String> {
+                let frame = camera
+                    .frame()
+                    .map_err(|e| format!("Camera frame error: {}", e))?;
+                let image = frame
+                    .decode_image::<nokhwa::pixel_format::RgbFormat>()
+                    .map_err(|e| format!("Camera decode error: {}", e))?;
+                let rgb: RgbImage = image;
+
+                let settings_snapshot = settings
+                    .lock()
+                    .map_err(|_| "Settings lock poisoned".to_string())?
+                    .clone();
+                let clahe = settings_snapshot.clahe_face_preproc;
+
+                let owner_profile = owner
+                    .lock()
+                    .map_err(|_| "Owner lock poisoned".to_string())?
+                    .clone()
+                    .ok_or_else(|| "Owner profile missing during monitoring".to_string())?;
+
+                let owner_threshold =
+                    owner_cosine_threshold(&owner_profile, owner_match_threshold());
+
+                let mut faces = detector.detect(&rgb)?;
+                faces.sort_by(|a, b| {
+                    b.score
+                        .partial_cmp(&a.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                });
+                faces = suppress_nested_detections(faces);
+                faces.truncate(MAX_TRACKED_FACES);
+
+                let mut similarities: Vec<Option<f32>> = vec![None; faces.len()];
+                for (idx, face) in faces.iter().enumerate() {
+                    if pass_quality_gate(&rgb, face).is_err() {
+                        continue;
+                    }
+                    let mut aligned = align_face_5pt(&rgb, &face.landmarks, w, h)?;
+                    maybe_apply_clahe_luminance(&mut aligned, clahe);
+                    let embedding = embedder.embed(&aligned)?;
+                    similarities[idx] = Some(max_cosine_vs_samples(
+                        &embedding,
+                        &owner_profile.embedding_samples,
+                    )?);
                 }
-                ("observer".to_string(), Some(score))
-            };
 
-            debug_faces.push(DebugFace {
-                id: idx,
-                bbox: face.bbox.clone(),
-                label,
-                similarity,
-                observer_score,
-            });
-        }
+                let now = Instant::now();
+                let track_outputs = tracker.update(now, &faces, &similarities, owner_threshold);
 
-        let now = Instant::now();
-        let threshold = observer_threshold(&sensitivity);
-        let update = alert_state.update(
-            max_score,
-            threshold,
-            now,
-            Duration::from_secs(cooldown_sec),
-            !faces.is_empty(),
-        );
-        if update.triggered {
-            if let Some(score) = max_score {
-                emit_alert(&app, score, cooldown_sec)?;
+                let mut owner_index: Option<usize> = None;
+                let mut owner_similarity: Option<f32> = None;
+                for (idx, out) in track_outputs.iter().enumerate() {
+                    let Some(to) = out else { continue };
+                    if to.stable_label == StableFaceLabel::Owner {
+                        let sim = to.similarity_this_frame.or(to.ema_similarity);
+                        if let Some(s) = sim {
+                            if owner_similarity.map_or(true, |best| s > best) {
+                                owner_similarity = Some(s);
+                                owner_index = Some(idx);
+                            }
+                        }
+                    }
+                }
+                if owner_index.is_none() {
+                    for (idx, sim_opt) in similarities.iter().enumerate() {
+                        let Some(sim) = sim_opt else { continue };
+                        if *sim >= owner_threshold {
+                            if owner_similarity.map_or(true, |best| *sim > best) {
+                                owner_similarity = Some(*sim);
+                                owner_index = Some(idx);
+                            }
+                        }
+                    }
+                }
+
+                let owner_id = match owner_similarity {
+                    Some(sim) if sim >= owner_threshold => owner_index,
+                    _ => None,
+                };
+
+                let sensitivity = settings_snapshot.sensitivity.clone();
+                let cooldown_sec = settings_snapshot.cooldown_sec;
+                let debug_overlay = settings_snapshot.debug_overlay;
+
+                let mut max_score = None;
+                let mut debug_faces = Vec::new();
+
+                for (idx, face) in faces.iter().enumerate() {
+                    let similarity = similarities.get(idx).copied().flatten();
+
+                    let stable = track_outputs
+                        .get(idx)
+                        .and_then(|o| o.as_ref())
+                        .map(|t| t.stable_label)
+                        .unwrap_or(StableFaceLabel::Uncertain);
+
+                    let is_owner = Some(idx) == owner_id;
+                    let resembles_owner = similarity.map_or(false, |sim| sim >= owner_threshold);
+                    let duplicate_owner_detection = !is_owner
+                        && owner_id
+                            .and_then(|oid| faces.get(oid))
+                            .map(|owner_face| {
+                                is_duplicate_owner_detection(&face.bbox, &owner_face.bbox)
+                            })
+                            .unwrap_or(false);
+
+                    let label_str = match stable {
+                        StableFaceLabel::Owner => "owner",
+                        StableFaceLabel::Observer => "observer",
+                        StableFaceLabel::Uncertain => "uncertain",
+                    };
+
+                    let observer_like = stable == StableFaceLabel::Observer;
+
+                    let (label, observer_score) =
+                        if is_owner || resembles_owner || duplicate_owner_detection {
+                            ("owner".to_string(), None)
+                        } else if observer_like {
+                            let owner_bbox =
+                                owner_id.and_then(|oid| faces.get(oid)).map(|f| &f.bbox);
+                            let score = compute_observer_score(
+                                face,
+                                owner_bbox,
+                                similarity,
+                                rgb.width(),
+                                rgb.height(),
+                                sensitivity.clone(),
+                            );
+                            if max_score.map_or(true, |best| score > best) {
+                                max_score = Some(score);
+                            }
+                            ("observer".to_string(), Some(score))
+                        } else {
+                            (label_str.to_string(), None)
+                        };
+
+                    debug_faces.push(DebugFace {
+                        id: idx,
+                        bbox: face.bbox.clone(),
+                        label,
+                        similarity,
+                        observer_score,
+                    });
+                }
+
+                let now_ts = Instant::now();
+                let threshold = observer_threshold(&sensitivity);
+                let update = alert_state.update(
+                    max_score,
+                    threshold,
+                    now_ts,
+                    Duration::from_secs(cooldown_sec),
+                    !faces.is_empty(),
+                );
+                if update.triggered {
+                    if let Some(score) = max_score {
+                        emit_alert(&app, score, cooldown_sec)?;
+                    }
+                }
+
+                let state_label = match update.state {
+                    MonitorState::Idle => "idle",
+                    MonitorState::Monitoring => "monitoring",
+                    MonitorState::Alert => "alert",
+                    MonitorState::Cooldown => "cooldown",
+                };
+
+                if debug_overlay {
+                    let mut image_buffer = Vec::new();
+                    let mut encoder =
+                        JpegEncoder::new_with_quality(&mut image_buffer, DEBUG_JPEG_QUALITY);
+                    encoder
+                        .encode(
+                            rgb.as_raw(),
+                            rgb.width(),
+                            rgb.height(),
+                            image::ExtendedColorType::Rgb8,
+                        )
+                        .map_err(|e| e.to_string())?;
+
+                    let frame_event = FrameEvent {
+                        frame_width: rgb.width(),
+                        frame_height: rgb.height(),
+                        faces: debug_faces,
+                        observer_score: max_score,
+                        state: state_label.to_string(),
+                        image: Some(image_buffer),
+                    };
+                    let _ = app.emit("cv:frame", frame_event);
+                } else {
+                    let frame_event = FrameEvent {
+                        frame_width: rgb.width(),
+                        frame_height: rgb.height(),
+                        faces: Vec::new(),
+                        observer_score: max_score,
+                        state: state_label.to_string(),
+                        image: None,
+                    };
+                    let _ = app.emit("cv:frame", frame_event);
+                }
+
+                Ok(())
+            })();
+
+            match step {
+                Ok(()) => {
+                    consecutive_failures = 0;
+                }
+                Err(message) => {
+                    consecutive_failures += 1;
+                    let _ = emit_error(&app, &message);
+                    if consecutive_failures >= CONSECUTIVE_ERROR_STOP {
+                        let _ = emit_monitor_stopped(&app, &message);
+                        break;
+                    }
+                }
+            }
+
+            let elapsed = frame_start.elapsed();
+            if elapsed < TARGET_FRAME_INTERVAL {
+                thread::sleep(TARGET_FRAME_INTERVAL - elapsed);
             }
         }
 
-        let state_label = match update.state {
-            MonitorState::Idle => "idle",
-            MonitorState::Monitoring => "monitoring",
-            MonitorState::Alert => "alert",
-            MonitorState::Cooldown => "cooldown",
-        };
+        camera.stop_stream().map_err(|e| e.to_string())?;
+        Ok(())
+    })();
 
-        if debug_overlay {
-            let mut image_buffer = Vec::new();
-            // Encode debug frame with lower quality to keep UI throughput high.
-            let mut encoder = JpegEncoder::new_with_quality(&mut image_buffer, DEBUG_JPEG_QUALITY);
-            encoder
-                .encode(
-                    rgb.as_raw(),
-                    rgb.width(),
-                    rgb.height(),
-                    image::ExtendedColorType::Rgb8,
-                )
-                .map_err(|e| e.to_string())?;
-
-            let frame_event = FrameEvent {
-                frame_width: rgb.width(),
-                frame_height: rgb.height(),
-                faces: debug_faces,
-                observer_score: max_score,
-                state: state_label.to_string(),
-                image: Some(image_buffer),
-            };
-            let _ = app.emit("cv:frame", frame_event);
-        } else {
-            let frame_event = FrameEvent {
-                frame_width: rgb.width(),
-                frame_height: rgb.height(),
-                faces: Vec::new(),
-                observer_score: max_score,
-                state: state_label.to_string(),
-                image: None,
-            };
-            let _ = app.emit("cv:frame", frame_event);
-        }
-
-        let elapsed = frame_start.elapsed();
-        if elapsed < TARGET_FRAME_INTERVAL {
-            thread::sleep(TARGET_FRAME_INTERVAL - elapsed);
-        }
+    if let Err(e) = session {
+        let _ = emit_error(&app, &e);
     }
-
-    camera.stop_stream().map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 fn emit_alert(app: &AppHandle, score: f32, cooldown_sec: u64) -> Result<(), String> {
@@ -302,6 +372,14 @@ fn emit_error(app: &AppHandle, message: &str) -> Result<(), String> {
     app.emit("cv:error", event).map_err(|e| e.to_string())
 }
 
+fn emit_monitor_stopped(app: &AppHandle, reason: &str) -> Result<(), String> {
+    let event = MonitorStoppedEvent {
+        reason: reason.to_string(),
+    };
+    app.emit("cv:monitor-stopped", event)
+        .map_err(|e| e.to_string())
+}
+
 fn bbox_iou(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox) -> f32 {
     let x1 = a.x.max(b.x);
     let y1 = a.y.max(b.y);
@@ -309,7 +387,11 @@ fn bbox_iou(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox
     let y2 = (a.y + a.height).min(b.y + b.height);
     let inter = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
     let union = a.width * a.height + b.width * b.height - inter;
-    if union <= 0.0 { 0.0 } else { inter / union }
+    if union <= 0.0 {
+        0.0
+    } else {
+        inter / union
+    }
 }
 
 fn suppress_nested_detections(faces: Vec<FaceDetection>) -> Vec<FaceDetection> {
@@ -327,29 +409,6 @@ fn suppress_nested_detections(faces: Vec<FaceDetection>) -> Vec<FaceDetection> {
     kept
 }
 
-fn lookup_cached_similarity(
-    cache: &[FaceSimilaritySample],
-    bbox: &crate::cv::types::BoundingBox,
-    now: Instant,
-) -> Option<f32> {
-    let mut best_match: Option<(f32, f32)> = None;
-
-    for sample in cache {
-        if now.duration_since(sample.sampled_at) > SIMILARITY_CACHE_TTL {
-            continue;
-        }
-        if !is_duplicate_bbox(bbox, &sample.bbox) {
-            continue;
-        }
-        let score = bbox_overlap_score(bbox, &sample.bbox);
-        if best_match.map_or(true, |(best, _)| score > best) {
-            best_match = Some((score, sample.similarity));
-        }
-    }
-
-    best_match.map(|(_, similarity)| similarity)
-}
-
 fn is_duplicate_owner_detection(
     face_bbox: &crate::cv::types::BoundingBox,
     owner_bbox: &crate::cv::types::BoundingBox,
@@ -357,10 +416,7 @@ fn is_duplicate_owner_detection(
     is_duplicate_bbox(face_bbox, owner_bbox)
 }
 
-fn is_duplicate_bbox(
-    a: &crate::cv::types::BoundingBox,
-    b: &crate::cv::types::BoundingBox,
-) -> bool {
+fn is_duplicate_bbox(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox) -> bool {
     let iou = bbox_iou(a, b);
     let ios = bbox_ios(a, b);
     if iou >= 0.18 || ios >= 0.72 {
@@ -392,10 +448,10 @@ fn bbox_center_distance_ratio(
     let (ax, ay) = bbox_center(a);
     let (bx, by) = bbox_center(b);
     let center_distance = ((ax - bx).powi(2) + (ay - by).powi(2)).sqrt();
-    let reference_diag =
-        (((a.width.powi(2) + a.height.powi(2)).sqrt() + (b.width.powi(2) + b.height.powi(2)).sqrt())
-            * 0.5)
-            .max(1.0);
+    let reference_diag = (((a.width.powi(2) + a.height.powi(2)).sqrt()
+        + (b.width.powi(2) + b.height.powi(2)).sqrt())
+        * 0.5)
+        .max(1.0);
     center_distance / reference_diag
 }
 
@@ -410,25 +466,9 @@ fn bbox_ios(a: &crate::cv::types::BoundingBox, b: &crate::cv::types::BoundingBox
     let y2 = (a.y + a.height).min(b.y + b.height);
     let inter = (x2 - x1).max(0.0) * (y2 - y1).max(0.0);
     let min_area = (a.width * a.height).min(b.width * b.height);
-    if min_area <= 0.0 { 0.0 } else { inter / min_area }
-}
-
-fn bbox_overlap_score(
-    a: &crate::cv::types::BoundingBox,
-    b: &crate::cv::types::BoundingBox,
-) -> f32 {
-    bbox_iou(a, b).max(bbox_ios(a, b))
-}
-
-fn crop_face(image: &image::RgbImage, bbox: &crate::cv::types::BoundingBox) -> Result<image::RgbImage, String> {
-    let x1 = bbox.x.max(0.0).floor() as u32;
-    let y1 = bbox.y.max(0.0).floor() as u32;
-    let x2 = (bbox.x + bbox.width).min(image.width() as f32).ceil() as u32;
-    let y2 = (bbox.y + bbox.height).min(image.height() as f32).ceil() as u32;
-
-    if x2 <= x1 || y2 <= y1 {
-        return Err("Invalid face crop".to_string());
+    if min_area <= 0.0 {
+        0.0
+    } else {
+        inter / min_area
     }
-
-    Ok(crate::cv::preprocess::crop_rgb(image, x1, y1, x2 - x1, y2 - y1))
 }

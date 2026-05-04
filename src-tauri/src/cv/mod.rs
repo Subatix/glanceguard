@@ -1,8 +1,11 @@
-pub mod config;
 pub mod camera;
+pub mod config;
 pub mod detector;
 pub mod embedder;
+pub mod enroll;
 pub mod matching;
 pub mod preprocess;
+pub mod quality;
 pub mod scoring;
+pub mod tracker;
 pub mod types;
