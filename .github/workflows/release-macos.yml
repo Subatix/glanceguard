@@ -51,7 +51,8 @@ jobs:
           if [ -z "${APPLE_CERTIFICATE:-}" ]; then echo "Missing secret APPLE_CERTIFICATE (base64 .p12)."; exit 1; fi
           if [ -z "${KEYCHAIN_PASSWORD:-}" ]; then echo "Missing secret KEYCHAIN_PASSWORD"; exit 1; fi
 
-          printf '%s' "$APPLE_CERTIFICATE" | openssl base64 -d -out certificate.p12
+          printf '%s' "$APPLE_CERTIFICATE" | openssl base64 -A -d -out certificate.p12
+          openssl pkcs12 -in certificate.p12 -passin "pass:$APPLE_CERTIFICATE_PASSWORD" -nokeys -info -noout >/dev/null 2>&1
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
