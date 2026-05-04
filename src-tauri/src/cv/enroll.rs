@@ -7,7 +7,7 @@ use tauri::AppHandle;
 use crate::cv::camera::{open_camera, CameraSelection};
 use crate::cv::config::{load_detector_config, load_embedder_config};
 use crate::cv::detector::FaceDetector;
-use crate::cv::embedder::FaceEmbedder;
+use crate::cv::embedder::{EmbedderConfig, FaceEmbedder};
 use crate::cv::matching::{calibrate_personal_threshold, mean_embedding};
 use crate::cv::preprocess::{align_face_5pt, maybe_apply_clahe_luminance};
 use crate::cv::quality::pass_quality_gate;
@@ -19,17 +19,14 @@ const TARGET_FRAME_COUNT: usize = 8;
 const ENROLL_MAX_WAIT: Duration = Duration::from_millis(3500);
 const FRAME_POLL: Duration = Duration::from_millis(35);
 
-pub fn enroll_owner_from_rgb_image(
-    app: &AppHandle,
-    settings: &Settings,
+/// One embedding from a still RGB frame using the same detector / embedder / quality path as live enrollment.
+pub fn embedding_from_rgb_image(
     image: &RgbImage,
-) -> Result<OwnerProfile, String> {
-    crate::models::ensure_models_verified(app)?;
-    let detector_config = load_detector_config(app)?;
-    let embedder_config = load_embedder_config(app)?;
-    let mut detector = FaceDetector::new(app, detector_config)?;
-    let mut embedder = FaceEmbedder::new(app, embedder_config.clone())?;
-
+    settings: &Settings,
+    detector: &mut FaceDetector,
+    embedder: &mut FaceEmbedder,
+    embedder_config: &EmbedderConfig,
+) -> Result<Vec<f32>, String> {
     let mut faces = detector.detect(image)?;
     if faces.is_empty() {
         return Err("No face detected for enrollment".into());
@@ -54,7 +51,27 @@ pub fn enroll_owner_from_rgb_image(
     )?;
     maybe_apply_clahe_luminance(&mut aligned, settings.clahe_face_preproc);
 
-    let embedding = embedder.embed(&aligned)?;
+    embedder.embed(&aligned)
+}
+
+pub fn enroll_owner_from_rgb_image(
+    app: &AppHandle,
+    settings: &Settings,
+    image: &RgbImage,
+) -> Result<OwnerProfile, String> {
+    crate::models::ensure_models_verified(app)?;
+    let detector_config = load_detector_config(app)?;
+    let embedder_config = load_embedder_config(app)?;
+    let mut detector = FaceDetector::new(app, detector_config)?;
+    let mut embedder = FaceEmbedder::new(app, embedder_config.clone())?;
+
+    let embedding = embedding_from_rgb_image(
+        image,
+        settings,
+        &mut detector,
+        &mut embedder,
+        &embedder_config,
+    )?;
     let personal = owner_match_threshold();
     let model_info = owner_model_info(&embedder_config);
     Ok(storage::new_owner_profile(
@@ -62,6 +79,41 @@ pub fn enroll_owner_from_rgb_image(
         vec![embedding],
         personal,
         model_info,
+    ))
+}
+
+/// Wizard flow: one JPEG/PNG snapshot per guided pose. Uses the same quality gate and embedder path as live multi-frame enrollment, then mean + personal threshold calibration (Phase 4).
+pub fn enroll_owner_from_rgb_images_batch(
+    app: &AppHandle,
+    settings: &Settings,
+    images: &[RgbImage],
+) -> Result<OwnerProfile, String> {
+    if images.len() != 5 {
+        return Err(
+            "Enrollment expects exactly five pose images (center, left, right, up, down).".into(),
+        );
+    }
+
+    crate::models::ensure_models_verified(app)?;
+
+    let detector_config = load_detector_config(app)?;
+    let embedder_config = load_embedder_config(app)?;
+    let mut detector = FaceDetector::new(app, detector_config)?;
+    let mut embedder = FaceEmbedder::new(app, embedder_config.clone())?;
+
+    let mut samples: Vec<Vec<f32>> = Vec::with_capacity(images.len());
+    for (i, image) in images.iter().enumerate() {
+        let emb =
+            embedding_from_rgb_image(image, settings, &mut detector, &mut embedder, &embedder_config)
+                .map_err(|e| format!("Pose {}: {}", i + 1, e))?;
+        samples.push(emb);
+    }
+
+    let mean = mean_embedding(&samples)?;
+    let personal = calibrate_personal_threshold(&samples)?;
+    let model_info = owner_model_info(&embedder_config);
+    Ok(storage::new_owner_profile(
+        mean, samples, personal, model_info,
     ))
 }
 

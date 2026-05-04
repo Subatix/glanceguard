@@ -99,6 +99,40 @@ pub fn enroll_owner_from_image(
 }
 
 #[tauri::command(async)]
+pub fn enroll_owner_from_image_batch(
+    state: State<'_, AppState>,
+    app: AppHandle,
+    image_bytes_list: Vec<Vec<u8>>,
+) -> Result<OwnerModelInfo, String> {
+    let settings = state
+        .settings
+        .lock()
+        .map_err(|_| "Settings lock poisoned".to_string())?
+        .clone();
+
+    if image_bytes_list.len() != 5 {
+        return Err(
+            "Complete all five pose steps in the enrollment wizard before submitting.".into(),
+        );
+    }
+
+    let mut decoded: Vec<image::RgbImage> = Vec::with_capacity(image_bytes_list.len());
+    for (i, bytes) in image_bytes_list.iter().enumerate() {
+        let rgb = image_from_bytes(bytes).map_err(|e| format!("Image {}: {}", i + 1, e))?;
+        decoded.push(rgb);
+    }
+    let profile = enroll::enroll_owner_from_rgb_images_batch(&app, &settings, &decoded)?;
+    let model_info = profile.model.clone();
+    storage::save_owner_profile(&app, &profile)?;
+    let mut owner = state
+        .owner
+        .lock()
+        .map_err(|_| "Owner lock poisoned".to_string())?;
+    *owner = Some(profile);
+    Ok(model_info)
+}
+
+#[tauri::command(async)]
 pub fn enroll_owner_from_live(
     state: State<'_, AppState>,
     app: AppHandle,

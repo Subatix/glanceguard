@@ -42,6 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_keyring::init())
         .setup(|app| {
             let state = AppState::initialize(app.handle())?;
@@ -58,6 +59,7 @@ pub fn run() {
             commands::start_monitoring,
             commands::stop_monitoring,
             commands::enroll_owner_from_image,
+            commands::enroll_owner_from_image_batch,
             commands::enroll_owner_from_live,
             commands::clear_owner,
             commands::get_owner_status
